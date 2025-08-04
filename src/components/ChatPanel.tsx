@@ -75,9 +75,9 @@ const ChatPanel = () => {
   const currentModel = llmModels.find(model => model.id === selectedModel);
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-card/50 backdrop-blur-sm">
       {/* Chat Header with Model Selector */}
-      <div className="bg-background border-b border-border p-4">
+      <div className="bg-card/80 backdrop-blur-md border-b border-border p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">المحادثة</h2>
           
@@ -138,10 +138,10 @@ const ChatPanel = () => {
               }`}>
                 {msg.type === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
-              <Card className={`p-3 ${
+               <Card className={`p-3 shadow-card backdrop-blur-sm ${
                 msg.type === 'user' 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-card'
+                  ? 'bg-primary text-primary-foreground shadow-glow' 
+                  : 'bg-card/80 border-border/50'
               }`}>
                 <p className="text-sm leading-relaxed">{msg.content}</p>
                 <p className={`text-xs mt-2 ${
@@ -159,7 +159,7 @@ const ChatPanel = () => {
 
 
       {/* Message Input */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border bg-card/80 backdrop-blur-md">
         <div className="flex gap-2">
           <Textarea
             placeholder="اكتب رسالتك هنا..."

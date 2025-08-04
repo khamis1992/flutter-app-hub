@@ -22,9 +22,9 @@ const PreviewPanel = () => {
   const selectedDeviceConfig = devices.find(d => d.id === selectedDevice);
 
   return (
-    <div className="h-full flex flex-col bg-muted/30">
+    <div className="h-full flex flex-col bg-card/30 backdrop-blur-sm">
       {/* Preview Header */}
-      <div className="bg-background border-b border-border p-3">
+      <div className="bg-card/80 backdrop-blur-md border-b border-border p-3">
         <div className="flex items-center justify-between">
           {/* Device Selector */}
           <div className="flex items-center gap-2">
@@ -82,7 +82,7 @@ const PreviewPanel = () => {
       {/* Preview Content */}
       <div className="flex-1 p-4 flex items-center justify-center">
         {viewMode === "preview" ? (
-          <Card className={`${selectedDeviceConfig?.width} ${selectedDeviceConfig?.height} bg-background shadow-2xl overflow-hidden`}>
+          <Card className={`${selectedDeviceConfig?.width} ${selectedDeviceConfig?.height} bg-card shadow-glow border-border/50 overflow-hidden backdrop-blur-sm`}>
             {/* Phone Frame for Mobile */}
             {selectedDevice === "mobile" && (
               <div className="w-full h-full bg-gradient-to-b from-slate-900 to-slate-800 p-4 rounded-3xl">
@@ -159,7 +159,7 @@ const PreviewPanel = () => {
           </Card>
         ) : (
           // Code View
-          <Card className="w-full h-full bg-slate-900 text-green-400 p-4 font-mono text-sm overflow-auto">
+          <Card className="w-full h-full bg-card/90 backdrop-blur-sm text-foreground p-4 font-mono text-sm overflow-auto border-border/50 shadow-card">
             <pre className="whitespace-pre-wrap">
 {`import 'package:flutter/material.dart';
 

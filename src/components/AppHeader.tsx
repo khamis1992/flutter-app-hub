@@ -3,10 +3,10 @@ import { Smartphone, Settings, Share, Play, Code2 } from "lucide-react";
 
 const AppHeader = () => {
   return (
-    <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4">
+    <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
       {/* Logo */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+        <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
           <Smartphone className="w-4 h-4 text-primary-foreground" />
         </div>
         <div>
