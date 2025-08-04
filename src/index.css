@@ -8,62 +8,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Cyberpunk-inspired color palette */
-    --background: 222 84% 4%;
-    --foreground: 180 100% 95%;
+    --background: 0 0% 100%;
+    --foreground: 217 33% 17%;
 
-    --card: 222 84% 6%;
-    --card-foreground: 180 100% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 33% 17%;
 
-    --popover: 222 84% 6%;
-    --popover-foreground: 180 100% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 33% 17%;
 
-    /* Primary - Electric Blue */
-    --primary: 195 100% 50%;
-    --primary-foreground: 222 84% 4%;
-    --primary-glow: 195 100% 70%;
+    --primary: 243 47% 30%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 243 47% 45%;
 
-    /* Secondary - Neon Green */
-    --secondary: 120 100% 50%;
-    --secondary-foreground: 222 84% 4%;
+    --secondary: 160 100% 40%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Muted - Dark with subtle glow */
-    --muted: 222 84% 10%;
-    --muted-foreground: 180 20% 70%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 220 14% 65%;
 
-    /* Accent - Neon Pink/Magenta */
-    --accent: 320 100% 60%;
-    --accent-foreground: 222 84% 4%;
+    --accent: 158 100% 41%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Destructive - Neon Red */
-    --destructive: 0 100% 60%;
-    --destructive-foreground: 222 84% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Additional Cyberpunk Colors */
-    --neon-cyan: 180 100% 50%;
-    --neon-purple: 270 100% 60%;
-    --neon-orange: 30 100% 60%;
-    --neon-yellow: 60 100% 50%;
-
-    --border: 222 84% 15%;
-    --input: 222 84% 8%;
-    --ring: 195 100% 50%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 243 47% 30%;
     
-    /* Cyberpunk Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(195 100% 50%), hsl(270 100% 60%));
-    --gradient-secondary: linear-gradient(135deg, hsl(120 100% 50%), hsl(180 100% 50%));
-    --gradient-accent: linear-gradient(135deg, hsl(320 100% 60%), hsl(30 100% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(195 100% 50%) 0%, hsl(270 100% 60%) 30%, hsl(320 100% 60%) 70%, hsl(30 100% 60%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(222 84% 6%) 0%, hsl(222 84% 8%) 100%);
-    --gradient-background: radial-gradient(circle at 50% 50%, hsl(195 100% 50% / 0.1) 0%, transparent 50%);
+    /* New color system gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(243 47% 30%), hsl(160 100% 40%));
+    --gradient-hero: linear-gradient(135deg, hsl(243 47% 30%) 0%, hsl(158 100% 41%) 50%, hsl(160 100% 40%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
     
-    /* Cyberpunk Shadows and Glows */
-    --shadow-soft: 0 4px 20px -2px hsl(195 100% 50% / 0.2);
-    --shadow-glow: 0 0 40px hsl(195 100% 50% / 0.3);
-    --shadow-card: 0 8px 32px -8px hsl(195 100% 50% / 0.15);
-    --shadow-neon: 0 0 20px hsl(195 100% 50% / 0.5);
-    --shadow-accent: 0 0 30px hsl(320 100% 60% / 0.4);
-    --shadow-secondary: 0 0 25px hsl(120 100% 50% / 0.4);
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -2px hsl(243 47% 30% / 0.1);
+    --shadow-glow: 0 0 40px hsl(243 47% 30% / 0.15);
+    --shadow-card: 0 8px 32px -8px hsl(217 33% 17% / 0.08);
 
     --radius: 0.5rem;
 
@@ -130,126 +112,5 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-image: var(--gradient-background);
-    background-attachment: fixed;
-  }
-}
-
-/* Cyberpunk Utility Classes */
-@layer utilities {
-  .neon-border {
-    border: 1px solid hsl(var(--primary));
-    box-shadow: 
-      inset 0 0 10px hsl(var(--primary) / 0.2),
-      0 0 10px hsl(var(--primary) / 0.3);
-  }
-  
-  .neon-text {
-    color: hsl(var(--primary));
-    text-shadow: 
-      0 0 5px hsl(var(--primary) / 0.8),
-      0 0 10px hsl(var(--primary) / 0.6),
-      0 0 15px hsl(var(--primary) / 0.4);
-  }
-  
-  .cyber-card {
-    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
-    border: 1px solid hsl(var(--border));
-    box-shadow: 
-      0 0 20px hsl(var(--primary) / 0.1),
-      inset 0 1px 0 hsl(var(--primary) / 0.1);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .cyber-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
-    animation: data-stream 3s linear infinite;
-  }
-  
-  .hologram-text {
-    background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--accent)));
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: hologram 3s ease-in-out infinite;
-  }
-  
-  .cyber-button {
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.1));
-    border: 1px solid hsl(var(--primary));
-    box-shadow: 
-      0 0 20px hsl(var(--primary) / 0.3),
-      inset 0 1px 0 hsl(var(--primary) / 0.2);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .cyber-button:hover {
-    box-shadow: 
-      0 0 30px hsl(var(--primary) / 0.6),
-      inset 0 1px 0 hsl(var(--primary) / 0.3);
-    transform: translateY(-2px);
-  }
-  
-  .cyber-button::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.2), transparent);
-    transition: left 0.5s;
-  }
-  
-  .cyber-button:hover::after {
-    left: 100%;
-  }
-  
-  .scan-line {
-    position: relative;
-  }
-  
-  .scan-line::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
-    animation: scan-lines 3s linear infinite;
-  }
-  
-  .matrix-bg {
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .matrix-bg::before {
-    content: '';
-    position: absolute;
-    top: -100%;
-    left: 0;
-    width: 100%;
-    height: 200%;
-    background-image: 
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        hsl(var(--primary) / 0.03) 2px,
-        hsl(var(--primary) / 0.03) 4px
-      );
-    animation: matrix-rain 4s linear infinite;
-    pointer-events: none;
   }
 }
