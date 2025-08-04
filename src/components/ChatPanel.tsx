@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, Bot, User, Code, Smartphone, Palette } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Send, Bot, User, Code, Smartphone, Palette, Zap, Brain, Clock } from "lucide-react";
 
 const ChatPanel = () => {
   const [message, setMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState("gpt-4.1");
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -46,8 +48,84 @@ const ChatPanel = () => {
     { icon: Palette, text: "تحسين التصميم" }
   ];
 
+  const llmModels = [
+    { 
+      id: "gpt-4.1", 
+      name: "GPT-4.1", 
+      description: "النموذج الرئيسي - متوازن وقوي",
+      icon: Brain,
+      color: "text-primary"
+    },
+    { 
+      id: "claude-4-opus", 
+      name: "Claude 4 Opus", 
+      description: "الأكثر ذكاءً - للمهام المعقدة",
+      icon: Zap,
+      color: "text-accent"
+    },
+    { 
+      id: "claude-4-sonnet", 
+      name: "Claude 4 Sonnet", 
+      description: "عالي الأداء - سريع وذكي",
+      icon: Clock,
+      color: "text-secondary"
+    }
+  ];
+
+  const currentModel = llmModels.find(model => model.id === selectedModel);
+
   return (
     <div className="h-full flex flex-col bg-background">
+      {/* Chat Header with Model Selector */}
+      <div className="bg-background border-b border-border p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">المحادثة</h2>
+          
+          {/* Model Selector */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">النموذج:</span>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger className="w-48">
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    {currentModel && (
+                      <>
+                        <currentModel.icon className={`w-4 h-4 ${currentModel.color}`} />
+                        <span className="font-medium">{currentModel.name}</span>
+                      </>
+                    )}
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {llmModels.map((model) => {
+                  const Icon = model.icon;
+                  return (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex items-center gap-3 py-1">
+                        <Icon className={`w-4 h-4 ${model.color}`} />
+                        <div className="flex flex-col">
+                          <span className="font-medium">{model.name}</span>
+                          <span className="text-xs text-muted-foreground">{model.description}</span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        {/* Current Model Info */}
+        {currentModel && (
+          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <currentModel.icon className={`w-3 h-3 ${currentModel.color}`} />
+            <span>يتم استخدام {currentModel.name} - {currentModel.description}</span>
+          </div>
+        )}
+      </div>
+
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
