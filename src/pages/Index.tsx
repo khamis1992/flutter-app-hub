@@ -1,9 +1,19 @@
-import ModernChatPanel from "@/components/ModernChatPanel";
+import Header from "@/components/Header";
+import Hero from "@/components/Hero";
+import Stats from "@/components/Stats";
+import Features from "@/components/Features";
+import CTA from "@/components/CTA";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
-    <div className="h-screen bg-slate-900">
-      <ModernChatPanel />
+    <div className="min-h-screen">
+      <Header />
+      <Hero />
+      <Stats />
+      <Features />
+      <CTA />
+      <Footer />
     </div>
   );
 };
