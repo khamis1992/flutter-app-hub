@@ -1,19 +1,23 @@
-import Header from "@/components/Header";
-import Hero from "@/components/Hero";
-import Stats from "@/components/Stats";
-import Features from "@/components/Features";
-import CTA from "@/components/CTA";
-import Footer from "@/components/Footer";
+import AppHeader from "@/components/AppHeader";
+import ChatPanel from "@/components/ChatPanel";
+import PreviewPanel from "@/components/PreviewPanel";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
-      <Header />
-      <Hero />
-      <Stats />
-      <Features />
-      <CTA />
-      <Footer />
+    <div className="h-screen flex flex-col">
+      <AppHeader />
+      
+      <div className="flex-1 flex">
+        {/* Chat Panel - Left Side */}
+        <div className="w-1/2 border-r border-border">
+          <ChatPanel />
+        </div>
+        
+        {/* Preview Panel - Right Side */}
+        <div className="w-1/2">
+          <PreviewPanel />
+        </div>
+      </div>
     </div>
   );
 };
