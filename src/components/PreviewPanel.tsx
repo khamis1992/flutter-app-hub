@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
   Smartphone, 
-  Tablet, 
   Monitor, 
   RotateCcw, 
   ExternalLink, 
@@ -17,7 +16,6 @@ const PreviewPanel = () => {
 
   const devices = [
     { id: "mobile", icon: Smartphone, label: "موبايل", width: "w-80", height: "h-[600px]" },
-    { id: "tablet", icon: Tablet, label: "تابلت", width: "w-96", height: "h-[500px]" },
     { id: "desktop", icon: Monitor, label: "سطح المكتب", width: "w-full", height: "h-[600px]" }
   ];
 
