@@ -79,22 +79,6 @@ const ChatPanel = () => {
         ))}
       </div>
 
-      {/* Quick Suggestions */}
-      <div className="p-4 border-t border-border">
-        <div className="grid grid-cols-1 gap-2 mb-4">
-          {suggestions.map((suggestion, index) => (
-            <Button
-              key={index}
-              variant="ghost"
-              className="justify-start h-auto p-3 text-right"
-              onClick={() => setMessage(suggestion.text)}
-            >
-              <suggestion.icon className="w-4 h-4 ml-2" />
-              {suggestion.text}
-            </Button>
-          ))}
-        </div>
-      </div>
 
       {/* Message Input */}
       <div className="p-4 border-t border-border">
