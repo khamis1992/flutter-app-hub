@@ -3,31 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Code, Smartphone, Palette, Zap, Brain, Clock } from "lucide-react";
+import { Send, Bot, User, Zap, Brain, Clock } from "lucide-react";
 
 const ChatPanel = () => {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4.1");
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: "assistant",
-      content: "مرحباً! أنا مساعدك الذكي لتطوير تطبيقات Flutter. كيف يمكنني مساعدتك اليوم؟",
-      timestamp: "10:30"
-    },
-    {
-      id: 2,
-      type: "user", 
-      content: "أريد إنشاء تطبيق للتسوق الإلكتروني",
-      timestamp: "10:31"
-    },
-    {
-      id: 3,
-      type: "assistant",
-      content: "ممتاز! سأساعدك في إنشاء تطبيق تسوق إلكتروني. سأبدأ بإنشاء الصفحة الرئيسية مع قائمة المنتجات وشريط البحث.",
-      timestamp: "10:31"
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
 
   const handleSend = () => {
     if (message.trim()) {
@@ -42,11 +23,6 @@ const ChatPanel = () => {
     }
   };
 
-  const suggestions = [
-    { icon: Smartphone, text: "إنشاء صفحة رئيسية" },
-    { icon: Code, text: "إضافة قائمة المنتجات" },
-    { icon: Palette, text: "تحسين التصميم" }
-  ];
 
   const llmModels = [
     { 
