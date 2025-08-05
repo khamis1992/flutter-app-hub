@@ -31,20 +31,62 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
 
   const selectedDeviceConfig = devices.find(d => d.id === selectedDevice);
 
+  const getProjectFiles = () => {
+    if (!project) return {};
+    
+    const files: { [key: string]: string } = {};
+    
+    if (project.main) {
+      files['lib/main.dart'] = project.main;
+    }
+    
+    if (project.pubspec) {
+      files['pubspec.yaml'] = project.pubspec;
+    }
+    
+    project.models?.forEach((model: string, index: number) => {
+      files[`lib/models/model_${index + 1}.dart`] = model;
+    });
+    
+    project.views?.forEach((view: string, index: number) => {
+      files[`lib/views/view_${index + 1}.dart`] = view;
+    });
+    
+    project.controllers?.forEach((controller: string, index: number) => {
+      files[`lib/controllers/controller_${index + 1}.dart`] = controller;
+    });
+    
+    project.services?.forEach((service: string, index: number) => {
+      files[`lib/services/service_${index + 1}.dart`] = service;
+    });
+    
+    project.themes?.forEach((theme: string, index: number) => {
+      files[`lib/themes/theme_${index + 1}.dart`] = theme;
+    });
+    
+    project.utils?.forEach((util: string, index: number) => {
+      files[`lib/utils/util_${index + 1}.dart`] = util;
+    });
+    
+    return files;
+  };
+
   const downloadProject = () => {
     if (!project) return;
     
-    // Create a zip-like structure for download
+    const files = getProjectFiles();
     const projectData = {
-      name: project.name,
-      files: project.files,
+      name: project.description || 'Flutter Project',
+      description: project.description,
+      files,
+      structure: project.structure,
       timestamp: new Date().toISOString()
     };
     
     const dataStr = JSON.stringify(projectData, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
-    const exportFileDefaultName = `${project.name || 'flutter_project'}.json`;
+    const exportFileDefaultName = `flutter_project_${new Date().getTime()}.json`;
     
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
@@ -81,7 +123,7 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
         
         {project && (
           <div className="mt-2 text-sm text-muted-foreground">
-            {project.description} • {Object.keys(project.files || {}).length} ملف
+            {project.description} • {Object.keys(getProjectFiles()).length} ملف
           </div>
         )}
       </div>
@@ -188,7 +230,7 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
                   <h3 className="font-medium mb-3">ملفات المشروع</h3>
                   <ScrollArea className="h-[400px]">
                     <div className="space-y-1">
-                      {Object.keys(project.files || {}).map((fileName) => (
+                      {Object.keys(getProjectFiles()).map((fileName) => (
                         <Button
                           key={fileName}
                           variant={selectedFile === fileName ? "secondary" : "ghost"}
@@ -209,7 +251,7 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
                   <h3 className="font-medium mb-3">{selectedFile}</h3>
                   <ScrollArea className="h-[400px]">
                     <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
-                      <code>{project.files?.[selectedFile] || "// اختر ملف لعرض محتواه"}</code>
+                      <code>{getProjectFiles()[selectedFile] || "// اختر ملف لعرض محتواه"}</code>
                     </pre>
                   </ScrollArea>
                 </Card>
@@ -236,7 +278,7 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
                     </div>
                     <div>
                       <span className="font-medium">عدد الملفات:</span>
-                      <span className="ml-2">{Object.keys(project.files || {}).length}</span>
+                      <span className="ml-2">{Object.keys(getProjectFiles()).length}</span>
                     </div>
                   </div>
                 </Card>

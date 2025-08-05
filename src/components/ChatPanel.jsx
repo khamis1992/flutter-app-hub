@@ -151,15 +151,75 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
     }
   };
 
-  // These functions are now removed as they were using localhost:5000
-  // The main chat functionality now uses Supabase edge functions
+  const generateFlutterApp = async (prompt, projectType = 'mobile_app') => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('generate-flutter', {
+        body: { 
+          prompt,
+          projectType,
+          framework: 'flutter'
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'خطأ في تولید تطبيق Flutter');
+      }
+
+      if (data?.project) {
+        onCodeGenerated(data.project);
+        
+        const successMessage = {
+          id: Date.now() + 2,
+          type: 'assistant',
+          content: `تم إنشاء تطبيق Flutter بنجاح! 🎉\n\nتم تولید:\n- الملف الرئيسي (main.dart)\n- ${data.project.models?.length || 0} نموذج\n- ${data.project.views?.length || 0} واجهة\n- ${data.project.controllers?.length || 0} متحكم\n\nيمكنك رؤية الكود في لوحة المعاينة.`,
+          timestamp: new Date().toLocaleTimeString('ar-SA')
+        };
+        
+        setMessages(prev => [...prev, successMessage]);
+        
+        toast({
+          title: "تم إنشاء التطبيق بنجاح",
+          description: "تم تولید كود Flutter كامل",
+        });
+      }
+    } catch (error) {
+      console.error('Error generating Flutter app:', error);
+      
+      const errorMessage = {
+        id: Date.now() + 2,
+        type: 'assistant',
+        content: `عذراً، حدث خطأ في تولید التطبيق: ${error.message}`,
+        timestamp: new Date().toLocaleTimeString('ar-SA')
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        variant: "destructive",
+        title: "خطأ في التولید",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const quickPrompts = [
-    'كيف يمكنني تطوير موقع ويب بسيط؟',
-    'ما هي أفضل الممارسات في React؟',
-    'كيف أستخدم Tailwind CSS؟',
-    'كيف يمكنني إنشاء API بسيط؟'
+    'أنشئ تطبيق تسوق إلكتروني بسيط',
+    'أنشئ تطبيق قائمة مهام مع قاعدة بيانات',
+    'أنشئ تطبيق دردشة للفرق',
+    'أنشئ تطبيق إدارة المالية الشخصية',
+    'أنشئ تطبيق حجز المواعيد',
+    'أنشئ تطبيق متابعة الصحة واللياقة'
   ];
+
+  const handleQuickPrompt = (prompt) => {
+    setInputValue(prompt);
+    // Auto-generate Flutter app for quick prompts
+    generateFlutterApp(prompt);
+  };
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 to-blue-50">
@@ -248,9 +308,10 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
           {quickPrompts.map((prompt, index) => (
             <button
               key={index}
-              onClick={() => setInputValue(prompt)}
-              className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+              onClick={() => handleQuickPrompt(prompt)}
+              className="px-3 py-2 text-xs bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full hover:from-blue-200 hover:to-purple-200 transition-all border border-blue-200 flex items-center gap-1"
             >
+              <Zap className="w-3 h-3" />
               {prompt}
             </button>
           ))}

@@ -12,7 +12,7 @@ const Index = () => {
 
   return (
     <div className="h-screen flex flex-col">
-      <AppHeader />
+      <AppHeader project={generatedProject} />
       
       <div className="flex-1 flex">
         {/* Chat Panel - Left Side */}

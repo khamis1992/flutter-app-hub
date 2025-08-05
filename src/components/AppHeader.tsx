@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Smartphone, Settings, Share, Play, Code2 } from "lucide-react";
 import SettingsDialog from "./SettingsDialog";
 
-const AppHeader = () => {
+interface AppHeaderProps {
+  project?: any;
+}
+
+const AppHeader = ({ project }: AppHeaderProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
@@ -21,7 +25,9 @@ const AppHeader = () => {
       <div className="flex-1 text-center">
         <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-lg">
           <Code2 className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">مشروع تطبيق جديد</span>
+          <span className="text-sm font-medium text-foreground">
+            {project?.description || "مشروع تطبيق جديد"}
+          </span>
         </div>
       </div>
 
