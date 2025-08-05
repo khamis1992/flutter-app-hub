@@ -8,58 +8,58 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 213 31% 91%;
+    --background: 0 0% 100%;
+    --foreground: 213 31% 15%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 213 31% 91%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 31% 15%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 31% 15%;
 
-    --primary: 234 89% 74%;
-    --primary-foreground: 222 47% 11%;
-    --primary-glow: 234 89% 80%;
+    --primary: 234 89% 64%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 234 89% 70%;
 
-    --secondary: 222 47% 15%;
-    --secondary-foreground: 213 31% 91%;
+    --secondary: 213 20% 96%;
+    --secondary-foreground: 213 31% 15%;
 
-    --muted: 222 47% 13%;
-    --muted-foreground: 213 13% 65%;
+    --muted: 213 20% 96%;
+    --muted-foreground: 213 13% 45%;
 
-    --accent: 234 89% 74%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 234 89% 64%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 60%;
-    --destructive-foreground: 213 31% 91%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 222 47% 20%;
-    --input: 222 47% 13%;
-    --ring: 234 89% 74%;
+    --border: 213 20% 89%;
+    --input: 213 20% 96%;
+    --ring: 234 89% 64%;
     
-    /* Bolt.new inspired gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(234 89% 74%), hsl(234 89% 80%));
-    --gradient-hero: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 13%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(222 47% 11%) 0%, hsl(222 47% 13%) 100%);
-    --gradient-mesh: radial-gradient(circle at 50% 0%, hsl(234 89% 74% / 0.1) 0%, transparent 50%),
-                     radial-gradient(circle at 20% 80%, hsl(234 89% 80% / 0.08) 0%, transparent 50%),
-                     radial-gradient(circle at 80% 80%, hsl(234 89% 70% / 0.08) 0%, transparent 50%);
+    /* Light mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(234 89% 64%), hsl(234 89% 70%));
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(213 20% 98%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(213 20% 99%) 100%);
+    --gradient-mesh: radial-gradient(circle at 50% 0%, hsl(234 89% 64% / 0.05) 0%, transparent 50%),
+                     radial-gradient(circle at 20% 80%, hsl(234 89% 70% / 0.04) 0%, transparent 50%),
+                     radial-gradient(circle at 80% 80%, hsl(234 89% 60% / 0.04) 0%, transparent 50%);
     
-    /* Bolt.new style shadows */
-    --shadow-soft: 0 4px 20px -2px hsl(234 89% 74% / 0.15);
-    --shadow-glow: 0 0 40px hsl(234 89% 74% / 0.2);
-    --shadow-card: 0 8px 32px -8px hsl(222 47% 7% / 0.4);
+    /* Light mode shadows */
+    --shadow-soft: 0 4px 20px -2px hsl(213 31% 15% / 0.08);
+    --shadow-glow: 0 0 40px hsl(234 89% 64% / 0.15);
+    --shadow-card: 0 8px 32px -8px hsl(213 31% 15% / 0.1);
 
     --radius: 0.75rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 234 89% 74%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 47% 15%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 222 47% 20%;
-    --sidebar-ring: 234 89% 74%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 213 31% 15%;
+    --sidebar-primary: 234 89% 64%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 20% 96%;
+    --sidebar-accent-foreground: 213 31% 15%;
+    --sidebar-border: 213 20% 89%;
+    --sidebar-ring: 234 89% 64%;
   }
 
   .dark {
