@@ -1,20 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Play, Pause, CheckCircle, Clock, List, Zap } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
+  const { toast } = useToast();
   const [messages, setMessages] = useState([
     {
       id: 1,
       type: 'assistant',
-      content: 'مرحباً! أنا مساعد Flutter AI الذكي الحقيقي. يمكنني إنشاء تطبيقات Flutter حقيقية وتوليد كود فعلي. جرب أن تقول: "أريد إنشاء تطبيق متجر إلكتروني"',
+      content: 'مرحباً! أنا مساعد الذكاء الاصطناعي. يمكنني مساعدتك في البرمجة وتطوير التطبيقات. اسأل عن أي شيء تريد مساعدة فيه!',
       timestamp: new Date().toLocaleTimeString('ar-SA')
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('GPT-4 Turbo');
-  const [currentProject, setCurrentProject] = useState(null);
-  const [isExecutingTasks, setIsExecutingTasks] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [retryCount, setRetryCount] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -24,6 +26,51 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const callAIWithRetry = async (messagesPayload, model, attempt = 1) => {
+    const maxRetries = 3;
+    const timeoutMs = 30000; // 30 seconds
+
+    try {
+      console.log(`Attempt ${attempt} to call AI service...`);
+      
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { 
+          messages: messagesPayload,
+          model: model 
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (error) {
+        throw new Error(error.message || 'خطأ في استدعاء خدمة الذكاء الاصطناعي');
+      }
+
+      if (!data?.content) {
+        throw new Error('لم يتم استلام رد صحيح من الذكاء الاصطناعي');
+      }
+
+      return data.content;
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries && !error.name === 'AbortError') {
+        // Wait before retry (exponential backoff)
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Retrying in ${waitTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return callAIWithRetry(messagesPayload, model, attempt + 1);
+      }
+      
+      throw error;
+    }
+  };
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -39,232 +86,79 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
     const currentMessage = inputValue;
     setInputValue('');
     setIsLoading(true);
+    setRetryCount(0);
 
     try {
-      // Send to real AI backend
-      const response = await fetch('http://localhost:5000/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentMessage,
-          context: messages.slice(-5).map(msg => ({
-            role: msg.type === 'user' ? 'user' : 'assistant',
-            content: msg.content
-          }))
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        const assistantMessage = {
-          id: Date.now() + 1,
-          type: 'assistant',
-          content: data.response,
-          timestamp: new Date().toLocaleTimeString('ar-SA')
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-
-        // Generate code based on the message
-        await generateCode(currentMessage);
-        
-        // Analyze project if it seems like a project request
-        if (currentMessage.includes('تطبيق') || currentMessage.includes('مشروع') || currentMessage.includes('أريد')) {
-          await analyzeProject(currentMessage);
+      // Prepare messages for AI
+      const messagesPayload = [
+        ...messages.slice(-5).map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        })),
+        {
+          role: 'user',
+          content: currentMessage
         }
-      } else {
-        throw new Error(data.message || 'فشل في الحصول على رد من الذكاء الاصطناعي');
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage = {
+      ];
+
+      const response = await callAIWithRetry(messagesPayload, selectedModel);
+
+      const assistantMessage = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي: ${error.message}. يرجى التأكد من أن الخادم يعمل على المنفذ 5000.`,
+        content: response,
         timestamp: new Date().toLocaleTimeString('ar-SA')
       };
-      setMessages(prev => [...prev, errorMessage]);
+
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      toast({
+        title: "تم الإرسال بنجاح",
+        description: "تم استلام رد من الذكاء الاصطناعي",
+      });
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      let errorMessage = 'عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى';
+      } else if (error.message?.includes('API key')) {
+        errorMessage = 'خطأ في إعدادات الذكاء الاصطناعي. يرجى التحقق من المفاتيح';
+      } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        errorMessage = 'خطأ في الشبكة. يرجى التحقق من الاتصال بالإنترنت';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      const errorMessageObj = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        content: errorMessage,
+        timestamp: new Date().toLocaleTimeString('ar-SA')
+      };
+      
+      setMessages(prev => [...prev, errorMessageObj]);
+      
+      toast({
+        variant: "destructive",
+        title: "خطأ في الإرسال",
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateCode = async (prompt) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/ai/generate-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          project_type: selectedModel === 'ecommerce' ? 'ecommerce' : 
-                       selectedModel === 'social' ? 'social' : 'general'
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.code) {
-        let codeString = '';
-        
-        if (typeof data.code === 'string') {
-          codeString = data.code;
-        } else if (data.code.main_dart) {
-          codeString = data.code.main_dart;
-        } else {
-          codeString = JSON.stringify(data.code, null, 2);
-        }
-        
-        // Send generated code to preview panel
-        if (onCodeGenerated) {
-          onCodeGenerated(codeString);
-        }
-        
-        // Add code generation message
-        const codeMessage = {
-          id: Date.now() + 2,
-          type: 'assistant',
-          content: '✅ تم توليد الكود بنجاح! يمكنك رؤيته في لوحة المعاينة.',
-          timestamp: new Date().toLocaleTimeString('ar-SA')
-        };
-        setMessages(prev => [...prev, codeMessage]);
-      }
-    } catch (error) {
-      console.error('Error generating code:', error);
-    }
-  };
-
-  const analyzeProject = async (prompt) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/ai/analyze-project', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.analysis) {
-        setCurrentProject(data.analysis);
-        
-        // Send project analysis to parent component
-        if (onProjectAnalyzed) {
-          onProjectAnalyzed(data.analysis);
-        }
-        
-        // Add project analysis message
-        const analysisMessage = {
-          id: Date.now() + 3,
-          type: 'assistant',
-          content: `📋 **تحليل المشروع:**
-
-🎯 **اسم المشروع:** ${data.analysis.project_name}
-📱 **نوع المشروع:** ${data.analysis.project_type}
-📝 **الوصف:** ${data.analysis.description}
-🔧 **مستوى التعقيد:** ${data.analysis.complexity}
-
-✨ **الميزات المطلوبة:**
-${data.analysis.features ? data.analysis.features.map(f => `• ${f}`).join('\n') : '• ميزات أساسية'}
-
-📋 **المهام المطلوبة:**
-${data.analysis.tasks ? data.analysis.tasks.map((t, i) => `${i+1}. ${t.title} (${t.priority})`).join('\n') : '• مهام أساسية'}
-
-🛠️ **التقنيات المقترحة:**
-${data.analysis.technologies ? data.analysis.technologies.join(', ') : 'Flutter, Dart'}`,
-          timestamp: new Date().toLocaleTimeString('ar-SA'),
-          project: data.analysis
-        };
-        
-        setMessages(prev => [...prev, analysisMessage]);
-      }
-    } catch (error) {
-      console.error('Error analyzing project:', error);
-    }
-  };
-
-  const executeTask = async (taskIndex) => {
-    if (!currentProject || !currentProject.tasks || isExecutingTasks) return;
-
-    setIsExecutingTasks(true);
-    const task = currentProject.tasks[taskIndex];
-
-    try {
-      const response = await fetch('http://localhost:5000/api/ai/execute-task', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          task: task,
-          project_context: currentProject
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Update task status
-        const updatedProject = { ...currentProject };
-        updatedProject.tasks[taskIndex].status = 'completed';
-        setCurrentProject(updatedProject);
-
-        // Add task completion message
-        const taskMessage = {
-          id: Date.now(),
-          type: 'assistant',
-          content: `✅ **تم تنفيذ المهمة بنجاح!**
-
-📋 **المهمة:** ${task.title}
-📝 **الوصف:** ${task.description}
-⏱️ **الوقت المقدر:** ${task.estimated_time}
-
-🎯 **تم إنشاء الكود المطلوب وإضافته للمعاينة.**`,
-          timestamp: new Date().toLocaleTimeString('ar-SA')
-        };
-
-        setMessages(prev => [...prev, taskMessage]);
-
-        // Generate code for the task
-        if (data.code && onCodeGenerated) {
-          let codeString = '';
-          if (typeof data.code === 'string') {
-            codeString = data.code;
-          } else if (data.code.main_dart) {
-            codeString = data.code.main_dart;
-          } else {
-            codeString = JSON.stringify(data.code, null, 2);
-          }
-          onCodeGenerated(codeString);
-        }
-      } else {
-        throw new Error(data.message || 'فشل في تنفيذ المهمة');
-      }
-    } catch (error) {
-      const errorMessage = {
-        id: Date.now(),
-        type: 'assistant',
-        content: `❌ خطأ في تنفيذ المهمة: ${error.message}`,
-        timestamp: new Date().toLocaleTimeString('ar-SA')
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsExecutingTasks(false);
-    }
-  };
+  // These functions are now removed as they were using localhost:5000
+  // The main chat functionality now uses Supabase edge functions
 
   const quickPrompts = [
-    'أريد إنشاء تطبيق متجر إلكتروني متكامل',
-    'اعمل لي تطبيق شبكة اجتماعية',
-    'أريد تطوير تطبيق إدارة المهام',
-    'كيف يمكنني إنشاء واجهة جميلة؟'
+    'كيف يمكنني تطوير موقع ويب بسيط؟',
+    'ما هي أفضل الممارسات في React؟',
+    'كيف أستخدم Tailwind CSS؟',
+    'كيف يمكنني إنشاء API بسيط؟'
   ];
 
   return (
@@ -276,8 +170,8 @@ ${data.analysis.technologies ? data.analysis.technologies.join(', ') : 'Flutter,
             <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-800">مساعد Flutter الذكي الحقيقي</h3>
-            <p className="text-sm text-gray-600">متصل بـ OpenAI GPT-4</p>
+            <h3 className="font-bold text-gray-800">مساعد الذكاء الاصطناعي</h3>
+            <p className="text-sm text-gray-600">متصل بـ OpenAI عبر Supabase</p>
           </div>
         </div>
         
@@ -287,47 +181,14 @@ ${data.analysis.technologies ? data.analysis.technologies.join(', ') : 'Flutter,
         </div>
       </div>
 
-      {/* Project Status */}
-      {currentProject && (
-        <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-bold">{currentProject.project_name}</h4>
-              <p className="text-sm opacity-90">نوع المشروع: {currentProject.project_type}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm">المهام: {currentProject.tasks ? currentProject.tasks.filter(t => t.status === 'completed').length : 0}/{currentProject.tasks ? currentProject.tasks.length : 0}</p>
-              <p className="text-xs opacity-75">التعقيد: {currentProject.complexity}</p>
-            </div>
+      {/* Connection Status */}
+      {isLoading && (
+        <div className="p-2 bg-blue-50 border-b">
+          <div className="flex items-center gap-2 text-sm text-blue-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>جاري الاتصال بالذكاء الاصطناعي...</span>
+            {retryCount > 0 && <span>(المحاولة {retryCount + 1})</span>}
           </div>
-          
-          {/* Tasks */}
-          {currentProject.tasks && (
-            <div className="mt-3 space-y-2">
-              {currentProject.tasks.slice(0, 3).map((task, index) => (
-                <div key={index} className="flex items-center justify-between bg-white/20 rounded-lg p-2">
-                  <div className="flex items-center gap-2">
-                    {task.status === 'completed' ? (
-                      <CheckCircle className="w-4 h-4 text-green-300" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-yellow-300" />
-                    )}
-                    <span className="text-sm">{task.title}</span>
-                  </div>
-                  {task.status !== 'completed' && (
-                    <button
-                      onClick={() => executeTask(index)}
-                      disabled={isExecutingTasks}
-                      className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded text-xs hover:bg-white/30 disabled:opacity-50"
-                    >
-                      {isExecutingTasks ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                      تنفيذ
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -372,7 +233,7 @@ ${data.analysis.technologies ? data.analysis.technologies.join(', ') : 'Flutter,
             <div className="bg-white shadow-sm border rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                <span className="text-sm text-gray-600">جاري التفكير مع GPT-4...</span>
+                <span className="text-sm text-gray-600">جاري التفكير...</span>
               </div>
             </div>
           </div>

@@ -14,11 +14,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('Chat function called:', {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString(),
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
   // Check if OpenAI API key is available
   if (!openAIApiKey) {
-    console.error('Missing OpenAI API key');
+    console.error('Missing OpenAI API key - check Supabase secrets configuration');
     return new Response(JSON.stringify({ 
-      error: 'مفتاح OpenAI API غير متوفر. يرجى التحقق من إعدادات المشروع.' 
+      error: 'مفتاح OpenAI API غير متوفر. يرجى التحقق من إعدادات المشروع.',
+      details: 'OpenAI API key not configured in Supabase secrets'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -39,7 +47,15 @@ serve(async (req) => {
       throw new Error('رسائل غير صالحة أو فارغة');
     }
 
-    console.log('Calling OpenAI API...');
+    console.log('Calling OpenAI API...', {
+      model: model || 'gpt-4o-mini',
+      messageCount: messages.length,
+      timestamp: new Date().toISOString()
+    });
+
+    // Add timeout to OpenAI request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -59,7 +75,10 @@ serve(async (req) => {
         temperature: 0.7,
         max_tokens: 1000,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -101,20 +120,32 @@ serve(async (req) => {
     console.error('Error in chat function:', {
       message: error.message,
       stack: error.stack,
+      name: error.name,
       timestamp: new Date().toISOString()
     });
     
     let errorMessage = 'حدث خطأ في معالجة الطلب';
-    if (error.message.includes('fetch')) {
+    let statusCode = 500;
+    
+    if (error.name === 'AbortError') {
+      errorMessage = 'انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي. يرجى المحاولة مرة أخرى';
+      statusCode = 408;
+    } else if (error.message.includes('fetch') || error.message.includes('network')) {
       errorMessage = 'فشل في الاتصال بخدمة الذكاء الاصطناعي. يرجى التحقق من الاتصال بالإنترنت';
+      statusCode = 503;
+    } else if (error.message.includes('API key')) {
+      errorMessage = 'خطأ في مفتاح OpenAI API. يرجى التحقق من الإعدادات';
+      statusCode = 401;
     } else if (error.message) {
       errorMessage = error.message;
     }
     
     return new Response(JSON.stringify({ 
-      error: errorMessage 
+      error: errorMessage,
+      details: error.message,
+      timestamp: new Date().toISOString()
     }), {
-      status: 500,
+      status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
