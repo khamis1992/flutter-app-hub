@@ -8,11 +8,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
+    "build:dev": "vite build --mode development"
+
   },
-  {
   
-  "build:dev": "vite build --mode development"
- },
+  
+ 
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-accordion": "^1.2.10",
