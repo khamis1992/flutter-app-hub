@@ -118,6 +118,16 @@ const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     });
   };
 
+  const handleClearAllData = () => {
+    localStorage.removeItem("api_keys");
+    setSavedKeys([]);
+    
+    toast({
+      title: "تم مسح البيانات",
+      description: "تم مسح جميع المفاتيح المحفوظة",
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -196,7 +206,17 @@ const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
           {/* Saved API keys section */}
           {savedKeys.length > 0 && (
             <div className="grid gap-2">
-              <h3 className="font-semibold">المفاتيح المحفوظة</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">المفاتيح المحفوظة</h3>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleClearAllData}
+                  className="text-xs"
+                >
+                  مسح الكل
+                </Button>
+              </div>
               <div className="grid gap-2">
                 {savedKeys.map((keyData) => {
                   const provider = AI_PROVIDERS.find(p => p.id === keyData.provider);
