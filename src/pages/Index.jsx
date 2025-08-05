@@ -13,6 +13,10 @@ const Index = () => {
     setGeneratedCode(code);
   };
 
+  const handleProjectAnalyzed = (projectData) => {
+    setCurrentProject(projectData);
+  };
+
   const handleProjectUpdate = (project) => {
     setCurrentProject(project);
   };
@@ -31,6 +35,7 @@ const Index = () => {
         <div className="w-1/2 border-r border-gray-200">
           <ChatPanel 
             onCodeGenerated={handleCodeGenerated}
+            onProjectAnalyzed={handleProjectAnalyzed}
             onProjectUpdate={handleProjectUpdate}
           />
         </div>

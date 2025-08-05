@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Play, Pause, CheckCircle, Clock, List, Zap } from 'lucide-react';
 
-const ChatPanel = ({ onCodeGenerated }) => {
+const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
   const [messages, setMessages] = useState([
     {
       id: 1,
       type: 'assistant',
-      content: 'مرحباً! أنا مساعد Flutter AI الذكي المطور. يمكنني إنشاء مشاريع كاملة مع نظام إدارة المهام المتقدم. جرب أن تقول: "أريد إنشاء تطبيق متجر إلكتروني متكامل"',
+      content: 'مرحباً! أنا مساعد Flutter AI الذكي الحقيقي. يمكنني إنشاء تطبيقات Flutter حقيقية وتوليد كود فعلي. جرب أن تقول: "أريد إنشاء تطبيق متجر إلكتروني"',
       timestamp: new Date().toLocaleTimeString('ar-SA')
     }
   ]);
@@ -36,19 +36,23 @@ const ChatPanel = ({ onCodeGenerated }) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // Send to enhanced backend
-      const response = await fetch('http://localhost:8002/api/chat/project-request', {
+      // Send to real AI backend
+      const response = await fetch('http://localhost:5000/api/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: inputValue,
-          model: selectedModel
+          message: currentMessage,
+          context: messages.slice(-5).map(msg => ({
+            role: msg.type === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }))
         }),
       });
 
@@ -58,47 +62,28 @@ const ChatPanel = ({ onCodeGenerated }) => {
         const assistantMessage = {
           id: Date.now() + 1,
           type: 'assistant',
-          content: data.response_message,
-          timestamp: new Date().toLocaleTimeString('ar-SA'),
-          project: data.project_created ? data.project : null,
-          nextTask: data.next_task || null
+          content: data.response,
+          timestamp: new Date().toLocaleTimeString('ar-SA')
         };
 
         setMessages(prev => [...prev, assistantMessage]);
 
-        if (data.project_created) {
-          setCurrentProject(data.project);
-        }
-
-        // Generate code if there's a next task
-        if (data.next_task && onCodeGenerated) {
-          onCodeGenerated(`// المهمة التالية: ${data.next_task.title}
-// ${data.next_task.description}
-
-import 'package:flutter/material.dart';
-
-class NextTaskWidget extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${data.next_task.title}'),
-      ),
-      body: Center(
-        child: Text('جاري تطوير هذه المهمة...'),
-      ),
-    );
-  }
-}`);
+        // Generate code based on the message
+        await generateCode(currentMessage);
+        
+        // Analyze project if it seems like a project request
+        if (currentMessage.includes('تطبيق') || currentMessage.includes('مشروع') || currentMessage.includes('أريد')) {
+          await analyzeProject(currentMessage);
         }
       } else {
-        throw new Error(data.error || 'خطأ في الاستجابة');
+        throw new Error(data.message || 'فشل في الحصول على رد من الذكاء الاصطناعي');
       }
     } catch (error) {
+      console.error('Error sending message:', error);
       const errorMessage = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: `عذراً، حدث خطأ: ${error.message}. سأحاول الرد بطريقة تقليدية.`,
+        content: `عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي: ${error.message}. يرجى التأكد من أن الخادم يعمل على المنفذ 5000.`,
         timestamp: new Date().toLocaleTimeString('ar-SA')
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -107,53 +92,160 @@ class NextTaskWidget extends StatelessWidget {
     }
   };
 
-  const executeNextTask = async () => {
-    if (!currentProject || isExecutingTasks) return;
-
-    setIsExecutingTasks(true);
-
+  const generateCode = async (prompt) => {
     try {
-      const response = await fetch(`http://localhost:8002/api/projects/${currentProject.id}/execute-task`, {
+      const response = await fetch('http://localhost:5000/api/ai/generate-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          prompt: prompt,
+          project_type: selectedModel === 'ecommerce' ? 'ecommerce' : 
+                       selectedModel === 'social' ? 'social' : 'general'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.code) {
+        let codeString = '';
+        
+        if (typeof data.code === 'string') {
+          codeString = data.code;
+        } else if (data.code.main_dart) {
+          codeString = data.code.main_dart;
+        } else {
+          codeString = JSON.stringify(data.code, null, 2);
+        }
+        
+        // Send generated code to preview panel
+        if (onCodeGenerated) {
+          onCodeGenerated(codeString);
+        }
+        
+        // Add code generation message
+        const codeMessage = {
+          id: Date.now() + 2,
+          type: 'assistant',
+          content: '✅ تم توليد الكود بنجاح! يمكنك رؤيته في لوحة المعاينة.',
+          timestamp: new Date().toLocaleTimeString('ar-SA')
+        };
+        setMessages(prev => [...prev, codeMessage]);
+      }
+    } catch (error) {
+      console.error('Error generating code:', error);
+    }
+  };
+
+  const analyzeProject = async (prompt) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/ai/analyze-project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompt
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.analysis) {
+        setCurrentProject(data.analysis);
+        
+        // Send project analysis to parent component
+        if (onProjectAnalyzed) {
+          onProjectAnalyzed(data.analysis);
+        }
+        
+        // Add project analysis message
+        const analysisMessage = {
+          id: Date.now() + 3,
+          type: 'assistant',
+          content: `📋 **تحليل المشروع:**
+
+🎯 **اسم المشروع:** ${data.analysis.project_name}
+📱 **نوع المشروع:** ${data.analysis.project_type}
+📝 **الوصف:** ${data.analysis.description}
+🔧 **مستوى التعقيد:** ${data.analysis.complexity}
+
+✨ **الميزات المطلوبة:**
+${data.analysis.features ? data.analysis.features.map(f => `• ${f}`).join('\n') : '• ميزات أساسية'}
+
+📋 **المهام المطلوبة:**
+${data.analysis.tasks ? data.analysis.tasks.map((t, i) => `${i+1}. ${t.title} (${t.priority})`).join('\n') : '• مهام أساسية'}
+
+🛠️ **التقنيات المقترحة:**
+${data.analysis.technologies ? data.analysis.technologies.join(', ') : 'Flutter, Dart'}`,
+          timestamp: new Date().toLocaleTimeString('ar-SA'),
+          project: data.analysis
+        };
+        
+        setMessages(prev => [...prev, analysisMessage]);
+      }
+    } catch (error) {
+      console.error('Error analyzing project:', error);
+    }
+  };
+
+  const executeTask = async (taskIndex) => {
+    if (!currentProject || !currentProject.tasks || isExecutingTasks) return;
+
+    setIsExecutingTasks(true);
+    const task = currentProject.tasks[taskIndex];
+
+    try {
+      const response = await fetch('http://localhost:5000/api/ai/execute-task', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          task: task,
+          project_context: currentProject
+        })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // Update task status
+        const updatedProject = { ...currentProject };
+        updatedProject.tasks[taskIndex].status = 'completed';
+        setCurrentProject(updatedProject);
+
+        // Add task completion message
         const taskMessage = {
           id: Date.now(),
           type: 'assistant',
           content: `✅ **تم تنفيذ المهمة بنجاح!**
 
-📋 **المهمة:** ${data.task_completed.title}
-📝 **الوصف:** ${data.task_completed.description}
-⏱️ **الوقت المقدر:** ${data.task_completed.estimated_time} دقيقة
-📊 **تقدم المشروع:** ${data.project_status.project.progress.toFixed(1)}%
+📋 **المهمة:** ${task.title}
+📝 **الوصف:** ${task.description}
+⏱️ **الوقت المقدر:** ${task.estimated_time}
 
-🎯 **المهمة التالية:** ${data.project_status.next_task ? data.project_status.next_task.title : 'تم إنجاز جميع المهام! 🎉'}`,
-          timestamp: new Date().toLocaleTimeString('ar-SA'),
-          taskCompleted: data.task_completed,
-          projectStatus: data.project_status
+🎯 **تم إنشاء الكود المطلوب وإضافته للمعاينة.**`,
+          timestamp: new Date().toLocaleTimeString('ar-SA')
         };
 
         setMessages(prev => [...prev, taskMessage]);
 
-        // Update current project
-        setCurrentProject(data.project_status.project);
-
-        // Generate code for the completed task
-        if (data.code_result && data.code_result.files && onCodeGenerated) {
-          const files = data.code_result.files;
-          const mainFile = Object.keys(files)[0];
-          if (mainFile && files[mainFile]) {
-            onCodeGenerated(files[mainFile]);
+        // Generate code for the task
+        if (data.code && onCodeGenerated) {
+          let codeString = '';
+          if (typeof data.code === 'string') {
+            codeString = data.code;
+          } else if (data.code.main_dart) {
+            codeString = data.code.main_dart;
+          } else {
+            codeString = JSON.stringify(data.code, null, 2);
           }
+          onCodeGenerated(codeString);
         }
       } else {
-        throw new Error(data.error || 'فشل في تنفيذ المهمة');
+        throw new Error(data.message || 'فشل في تنفيذ المهمة');
       }
     } catch (error) {
       const errorMessage = {
@@ -168,77 +260,11 @@ class NextTaskWidget extends StatelessWidget {
     }
   };
 
-  const executeAllTasks = async () => {
-    if (!currentProject || isExecutingTasks) return;
-
-    setIsExecutingTasks(true);
-
-    try {
-      const response = await fetch(`http://localhost:8002/api/projects/${currentProject.id}/execute-all`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        const allTasksMessage = {
-          id: Date.now(),
-          type: 'assistant',
-          content: `🎉 **تم تنفيذ جميع المهام بنجاح!**
-
-📊 **ملخص التنفيذ:**
-✅ تم تنفيذ ${data.executed_tasks.length} مهمة
-📈 تقدم المشروع: ${data.final_status.project.progress.toFixed(1)}%
-
-📋 **سجل التنفيذ:**
-${data.execution_log.join('\\n')}
-
-🚀 **المشروع جاهز للاستخدام!**`,
-          timestamp: new Date().toLocaleTimeString('ar-SA'),
-          executedTasks: data.executed_tasks,
-          finalStatus: data.final_status
-        };
-
-        setMessages(prev => [...prev, allTasksMessage]);
-
-        // Update current project
-        setCurrentProject(data.final_status.project);
-
-        // Generate final code
-        if (data.executed_tasks.length > 0 && onCodeGenerated) {
-          const lastTask = data.executed_tasks[data.executed_tasks.length - 1];
-          if (lastTask.code_result && lastTask.code_result.files) {
-            const files = lastTask.code_result.files;
-            const mainFile = Object.keys(files)[0];
-            if (mainFile && files[mainFile]) {
-              onCodeGenerated(files[mainFile]);
-            }
-          }
-        }
-      } else {
-        throw new Error(data.error || 'فشل في تنفيذ المهام');
-      }
-    } catch (error) {
-      const errorMessage = {
-        id: Date.now(),
-        type: 'assistant',
-        content: `❌ خطأ في تنفيذ المهام: ${error.message}`,
-        timestamp: new Date().toLocaleTimeString('ar-SA')
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsExecutingTasks(false);
-    }
-  };
-
   const quickPrompts = [
     'أريد إنشاء تطبيق متجر إلكتروني متكامل',
     'اعمل لي تطبيق شبكة اجتماعية',
     'أريد تطوير تطبيق إدارة المهام',
-    'كيف تعمل؟'
+    'كيف يمكنني إنشاء واجهة جميلة؟'
   ];
 
   return (
@@ -250,21 +276,14 @@ ${data.execution_log.join('\\n')}
             <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-800">مساعد Flutter الذكي</h3>
-            <p className="text-sm text-gray-600">نظام إدارة المهام المتقدم</p>
+            <h3 className="font-bold text-gray-800">مساعد Flutter الذكي الحقيقي</h3>
+            <p className="text-sm text-gray-600">متصل بـ OpenAI GPT-4</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
-          <select 
-            value={selectedModel} 
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="px-3 py-1 border rounded-lg text-sm bg-white"
-          >
-            <option>GPT-4 Turbo</option>
-            <option>Claude 3.5</option>
-            <option>Gemini Pro</option>
-          </select>
+          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-sm text-green-600 font-medium">متصل</span>
         </div>
       </div>
 
@@ -273,34 +292,42 @@ ${data.execution_log.join('\\n')}
         <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-bold">{currentProject.name}</h4>
-              <p className="text-sm opacity-90">التقدم: {currentProject.progress.toFixed(1)}%</p>
+              <h4 className="font-bold">{currentProject.project_name}</h4>
+              <p className="text-sm opacity-90">نوع المشروع: {currentProject.project_type}</p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={executeNextTask}
-                disabled={isExecutingTasks || currentProject.progress >= 100}
-                className="flex items-center gap-1 px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 disabled:opacity-50"
-              >
-                {isExecutingTasks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                مهمة واحدة
-              </button>
-              <button
-                onClick={executeAllTasks}
-                disabled={isExecutingTasks || currentProject.progress >= 100}
-                className="flex items-center gap-1 px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 disabled:opacity-50"
-              >
-                {isExecutingTasks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                تنفيذ الكل
-              </button>
+            <div className="text-right">
+              <p className="text-sm">المهام: {currentProject.tasks ? currentProject.tasks.filter(t => t.status === 'completed').length : 0}/{currentProject.tasks ? currentProject.tasks.length : 0}</p>
+              <p className="text-xs opacity-75">التعقيد: {currentProject.complexity}</p>
             </div>
           </div>
-          <div className="mt-2 bg-white/20 rounded-full h-2">
-            <div 
-              className="bg-white rounded-full h-2 transition-all duration-500"
-              style={{ width: `${currentProject.progress}%` }}
-            />
-          </div>
+          
+          {/* Tasks */}
+          {currentProject.tasks && (
+            <div className="mt-3 space-y-2">
+              {currentProject.tasks.slice(0, 3).map((task, index) => (
+                <div key={index} className="flex items-center justify-between bg-white/20 rounded-lg p-2">
+                  <div className="flex items-center gap-2">
+                    {task.status === 'completed' ? (
+                      <CheckCircle className="w-4 h-4 text-green-300" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-yellow-300" />
+                    )}
+                    <span className="text-sm">{task.title}</span>
+                  </div>
+                  {task.status !== 'completed' && (
+                    <button
+                      onClick={() => executeTask(index)}
+                      disabled={isExecutingTasks}
+                      className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded text-xs hover:bg-white/30 disabled:opacity-50"
+                    >
+                      {isExecutingTasks ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                      تنفيذ
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -322,21 +349,6 @@ ${data.execution_log.join('\\n')}
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
                 {message.content}
               </div>
-              
-              {/* Project Info */}
-              {message.project && (
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <List className="w-4 h-4 text-blue-600" />
-                    <span className="font-semibold text-blue-800">تفاصيل المشروع</span>
-                  </div>
-                  <div className="text-sm text-blue-700">
-                    <p><strong>الاسم:</strong> {message.project.name}</p>
-                    <p><strong>النوع:</strong> {message.project.project_type}</p>
-                    <p><strong>عدد المهام:</strong> {message.project.tasks.length}</p>
-                  </div>
-                </div>
-              )}
               
               <div className="text-xs opacity-70 mt-2 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
@@ -360,7 +372,7 @@ ${data.execution_log.join('\\n')}
             <div className="bg-white shadow-sm border rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                <span className="text-sm text-gray-600">جاري التفكير والتحليل...</span>
+                <span className="text-sm text-gray-600">جاري التفكير مع GPT-4...</span>
               </div>
             </div>
           </div>
