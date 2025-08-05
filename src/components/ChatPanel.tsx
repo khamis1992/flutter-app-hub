@@ -29,6 +29,8 @@ const ChatPanel = () => {
       setIsLoading(true);
 
       try {
+        console.log('Sending message to chat function...');
+        
         const { data, error } = await supabase.functions.invoke('chat', {
           body: {
             messages: newMessages.map(msg => ({
@@ -39,25 +41,58 @@ const ChatPanel = () => {
           }
         });
 
+        console.log('Response from chat function:', { data, error });
+
         if (error) {
-          throw error;
+          console.error('Supabase function error:', error);
+          throw new Error(error.message || 'خطأ في استدعاء الدالة');
+        }
+
+        if (data?.error) {
+          console.error('Function returned error:', data.error);
+          throw new Error(data.error);
         }
 
         const assistantMessage = {
           id: newMessages.length + 1,
           type: "assistant" as const,
-          content: data.content,
+          content: data?.content || 'عذراً، لم أتمكن من الحصول على رد صحيح.',
           timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
         };
 
         setMessages([...newMessages, assistantMessage]);
-      } catch (error) {
-        console.error('Error sending message:', error);
+        
         toast({
-          title: "خطأ في الإرسال",
-          description: "حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.",
-          variant: "destructive"
+          title: "تم الإرسال",
+          description: "تم إرسال الرسالة بنجاح",
         });
+      } catch (error) {
+        console.error('Chat error:', error);
+        
+        let errorMessage = "فشل في الاتصال بالذكاء الاصطناعي";
+        
+        if (error.message?.includes('Failed to fetch')) {
+          errorMessage = "فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى";
+        } else if (error.message?.includes('timeout')) {
+          errorMessage = "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: "خطأ في الاتصال",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
+        // Add error message to chat
+        const errorAssistantMessage = {
+          id: newMessages.length + 1,
+          type: "assistant" as const,
+          content: `عذراً، حدث خطأ: ${errorMessage}`,
+          timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages([...newMessages, errorAssistantMessage]);
       } finally {
         setIsLoading(false);
       }

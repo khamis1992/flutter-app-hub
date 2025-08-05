@@ -14,10 +14,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Check if OpenAI API key is available
+  if (!openAIApiKey) {
+    console.error('Missing OpenAI API key');
+    return new Response(JSON.stringify({ 
+      error: 'مفتاح OpenAI API غير متوفر. يرجى التحقق من إعدادات المشروع.' 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { messages, model } = await req.json();
 
-    console.log('Received chat request:', { messagesCount: messages.length, model });
+    console.log('Received chat request:', { 
+      messagesCount: messages?.length || 0, 
+      model: model || 'gpt-4o-mini',
+      timestamp: new Date().toISOString()
+    });
+
+    // Validate input
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      throw new Error('رسائل غير صالحة أو فارغة');
+    }
+
+    console.log('Calling OpenAI API...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -40,13 +62,35 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('OpenAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      
+      let errorMessage = 'حدث خطأ في الاتصال بخدمة الذكاء الاصطناعي';
+      if (response.status === 401) {
+        errorMessage = 'مفتاح OpenAI API غير صحيح';
+      } else if (response.status === 429) {
+        errorMessage = 'تم تجاوز حد الاستخدام. يرجى المحاولة لاحقاً';
+      } else if (response.status >= 500) {
+        errorMessage = 'خطأ في خادم OpenAI. يرجى المحاولة لاحقاً';
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received successfully');
+    console.log('OpenAI response received successfully:', {
+      model: data.model,
+      usage: data.usage,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('استجابة غير صحيحة من خدمة الذكاء الاصطناعي');
+    }
 
     return new Response(JSON.stringify({ 
       content: data.choices[0].message.content 
@@ -54,9 +98,21 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in chat function:', error);
+    console.error('Error in chat function:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    let errorMessage = 'حدث خطأ في معالجة الطلب';
+    if (error.message.includes('fetch')) {
+      errorMessage = 'فشل في الاتصال بخدمة الذكاء الاصطناعي. يرجى التحقق من الاتصال بالإنترنت';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return new Response(JSON.stringify({ 
-      error: error.message || 'حدث خطأ في معالجة الطلب' 
+      error: errorMessage 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
