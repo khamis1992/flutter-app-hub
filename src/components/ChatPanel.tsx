@@ -3,23 +3,64 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Bot, User, Zap, Brain, Clock } from "lucide-react";
+import { Send, Bot, User, Zap, Brain, Clock, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const ChatPanel = () => {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4.1");
   const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSend = () => {
-    if (message.trim()) {
-      const newMessage = {
+  const handleSend = async () => {
+    if (message.trim() && !isLoading) {
+      const userMessage = {
         id: messages.length + 1,
         type: "user" as const,
         content: message,
         timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages([...messages, newMessage]);
+      
+      const newMessages = [...messages, userMessage];
+      setMessages(newMessages);
       setMessage("");
+      setIsLoading(true);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('chat', {
+          body: {
+            messages: newMessages.map(msg => ({
+              role: msg.type === 'user' ? 'user' : 'assistant',
+              content: msg.content
+            })),
+            model: selectedModel === 'gpt-4.1' ? 'gpt-4o-mini' : 'gpt-4o-mini'
+          }
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        const assistantMessage = {
+          id: newMessages.length + 1,
+          type: "assistant" as const,
+          content: data.content,
+          timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setMessages([...newMessages, assistantMessage]);
+      } catch (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "خطأ في الإرسال",
+          description: "حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -152,10 +193,14 @@ const ChatPanel = () => {
           />
           <Button 
             onClick={handleSend}
-            disabled={!message.trim()}
+            disabled={!message.trim() || isLoading}
             className="self-end"
           >
-            <Send className="w-4 h-4" />
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
