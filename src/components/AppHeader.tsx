@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Smartphone, Settings, Share, Play, Code2 } from "lucide-react";
+import SettingsDialog from "./SettingsDialog";
 
 const AppHeader = () => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
       {/* Logo */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
+        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-glow rounded-xl flex items-center justify-center shadow-glow">
           <Smartphone className="w-4 h-4 text-primary-foreground" />
         </div>
         <div>
@@ -32,10 +35,12 @@ const AppHeader = () => {
           <Share className="w-4 h-4 ml-1" />
           مشاركة
         </Button>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
           <Settings className="w-4 h-4" />
         </Button>
       </div>
+      
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </header>
   );
 };
