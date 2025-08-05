@@ -134,7 +134,7 @@ const ChatPanel = () => {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                 msg.type === 'user' 
                   ? 'bg-primary text-primary-foreground' 
-                  : 'bg-gradient-primary text-primary-foreground'
+                  : 'bg-primary text-primary-foreground'
               }`}>
                 {msg.type === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
