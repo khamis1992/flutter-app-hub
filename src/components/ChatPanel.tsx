@@ -4,12 +4,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Bot, User, Zap, Brain, Clock, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const ChatPanel = () => {
+const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => void }) => {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4.1");
+  const [appType, setAppType] = useState("productivity");
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -29,76 +29,85 @@ const ChatPanel = () => {
       setIsLoading(true);
 
       try {
-        console.log('Sending message to chat function...');
+        console.log('Sending request to Flutter AI Backend...');
         
-        const { data, error } = await supabase.functions.invoke('chat', {
-          body: {
-            messages: newMessages.map(msg => ({
-              role: msg.type === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            })),
-            model: selectedModel === 'gpt-4.1' ? 'gpt-4o-mini' : 'gpt-4o-mini'
+        // Call the CTO Expert Backend
+        const response = await fetch('http://localhost:8006/api/cto/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            description: message,
+            app_type: appType,
+            requirements: {
+              features: ["modern_ui", "responsive_design"],
+              platforms: ["android", "ios"],
+              complexity: "medium"
+            },
+            preferences: {
+              state_management: "provider",
+              architecture: "clean",
+              testing: true
+            }
+          })
+        });
+
+        const result = await response.json();
+        console.log('Response from Flutter AI Backend:', result);
+
+        if (result.success && result.project) {
+          const botMessage = {
+            id: newMessages.length + 1,
+            type: "bot" as const,
+            content: `تم إنشاء تطبيق Flutter بنجاح! 🎉\n\n**اسم المشروع:** ${result.project.name}\n**الوصف:** ${result.project.description}\n**نقاط الجودة:** ${result.project.quality_score}/100\n\n**الملفات المولدة:**\n${Object.keys(result.project.files).map(file => `• ${file}`).join('\n')}\n\n**الأنماط المطبقة:**\n${result.project.patterns?.map((pattern: string) => `• ${pattern}`).join('\n') || 'Clean Architecture, MVVM'}\n\n**التبعيات:**\n${result.project.dependencies?.map((dep: string) => `• ${dep}`).join('\n') || 'Provider, GetIt, Freezed'}`,
+            timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
+            project: result.project
+          };
+          
+          setMessages([...newMessages, botMessage]);
+          
+          // Pass the generated project to parent component
+          if (onCodeGenerated) {
+            onCodeGenerated(result.project);
           }
-        });
-
-        console.log('Response from chat function:', { data, error });
-
-        if (error) {
-          console.error('Supabase function error:', error);
-          throw new Error(error.message || 'خطأ في استدعاء الدالة');
+          
+          toast({
+            title: "تم إنشاء التطبيق بنجاح! 🎉",
+            description: `تم توليد ${Object.keys(result.project.files).length} ملف بجودة ${result.project.quality_score}/100`,
+          });
+        } else {
+          throw new Error(result.error || 'فشل في توليد الكود');
         }
-
-        if (data?.error) {
-          console.error('Function returned error:', data.error);
-          throw new Error(data.error);
-        }
-
-        const assistantMessage = {
-          id: newMessages.length + 1,
-          type: "assistant" as const,
-          content: data?.content || 'عذراً، لم أتمكن من الحصول على رد صحيح.',
-          timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-        };
-
-        setMessages([...newMessages, assistantMessage]);
-        
-        toast({
-          title: "تم الإرسال",
-          description: "تم إرسال الرسالة بنجاح",
-        });
       } catch (error) {
-        console.error('Chat error:', error);
+        console.error('Error calling Flutter AI Backend:', error);
         
-        let errorMessage = "فشل في الاتصال بالذكاء الاصطناعي";
-        
-        if (error.message?.includes('Failed to fetch')) {
-          errorMessage = "فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى";
-        } else if (error.message?.includes('timeout')) {
-          errorMessage = "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى";
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: "خطأ في الاتصال",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        
-        // Add error message to chat
-        const errorAssistantMessage = {
+        const errorMessage = {
           id: newMessages.length + 1,
-          type: "assistant" as const,
-          content: `عذراً، حدث خطأ: ${errorMessage}`,
+          type: "bot" as const,
+          content: `عذراً، حدث خطأ في توليد الكود. يرجى المحاولة مرة أخرى.\n\n**تفاصيل الخطأ:** ${error instanceof Error ? error.message : 'خطأ غير معروف'}\n\n**تأكد من:**\n• تشغيل الخادم الخلفي على المنفذ 8006\n• توفر مفتاح OpenAI API\n• الاتصال بالإنترنت`,
           timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
         };
-        setMessages([...newMessages, errorAssistantMessage]);
+        
+        setMessages([...newMessages, errorMessage]);
+        
+        toast({
+          title: "خطأ في توليد الكود",
+          description: "يرجى التأكد من تشغيل الخادم الخلفي والمحاولة مرة أخرى",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     }
   };
 
+  const quickPrompts = [
+    "أريد إنشاء تطبيق إدارة المهام",
+    "تطبيق للتجارة الإلكترونية",
+    "تطبيق للتواصل الاجتماعي",
+    "تطبيق للياقة البدنية"
+  ];
 
   const llmModels = [
     { 
@@ -124,6 +133,15 @@ const ChatPanel = () => {
     }
   ];
 
+  const appTypes = [
+    { id: "productivity", name: "إنتاجية", description: "تطبيقات إدارة المهام والملاحظات" },
+    { id: "ecommerce", name: "تجارة إلكترونية", description: "متاجر ومنصات البيع" },
+    { id: "social", name: "تواصل اجتماعي", description: "شبكات التواصل والمحادثة" },
+    { id: "fitness", name: "لياقة بدنية", description: "تطبيقات الرياضة والصحة" },
+    { id: "education", name: "تعليمية", description: "منصات التعلم والتدريب" },
+    { id: "entertainment", name: "ترفيه", description: "الألعاب والوسائط" }
+  ];
+
   const currentModel = llmModels.find(model => model.id === selectedModel);
 
   return (
@@ -131,7 +149,7 @@ const ChatPanel = () => {
       {/* Chat Header with Model Selector */}
       <div className="bg-card/80 backdrop-blur-md border-b border-border p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">المحادثة</h2>
+          <h2 className="text-lg font-semibold text-foreground">مولد Flutter AI - مستوى CTO</h2>
           
           {/* Model Selector */}
           <div className="flex items-center gap-3">
@@ -169,6 +187,28 @@ const ChatPanel = () => {
           </div>
         </div>
         
+        {/* App Type Selector */}
+        <div className="mt-3 flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">نوع التطبيق:</span>
+          <Select value={appType} onValueChange={setAppType}>
+            <SelectTrigger className="w-64">
+              <SelectValue>
+                {appTypes.find(type => type.id === appType)?.name}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {appTypes.map((type) => (
+                <SelectItem key={type.id} value={type.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{type.name}</span>
+                    <span className="text-xs text-muted-foreground">{type.description}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
         {/* Current Model Info */}
         {currentModel && (
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -178,8 +218,36 @@ const ChatPanel = () => {
         )}
       </div>
 
+      {/* Quick Prompts */}
+      {messages.length === 0 && (
+        <div className="p-4 border-b border-border">
+          <h3 className="text-sm font-medium text-foreground mb-2">اقتراحات سريعة:</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {quickPrompts.map((prompt, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                className="text-xs h-auto py-2 px-3 text-right justify-start"
+                onClick={() => setMessage(prompt)}
+              >
+                {prompt}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center text-muted-foreground py-8">
+            <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">مرحباً بك في مولد Flutter AI</p>
+            <p className="text-sm">اكتب وصف التطبيق الذي تريد إنشاؤه وسأقوم بتوليد كود Flutter كامل بمعايير CTO خبير</p>
+          </div>
+        )}
+        
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex gap-3 max-w-[80%] ${msg.type === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -195,7 +263,7 @@ const ChatPanel = () => {
                   ? 'bg-primary text-primary-foreground shadow-glow' 
                   : 'bg-card/80 border-border/50'
               }`}>
-                <p className="text-sm leading-relaxed">{msg.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</p>
                 <p className={`text-xs mt-2 ${
                   msg.type === 'user' 
                     ? 'text-primary-foreground/70' 
@@ -207,14 +275,29 @@ const ChatPanel = () => {
             </div>
           </div>
         ))}
+        
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="flex gap-3 max-w-[80%]">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary text-primary-foreground">
+                <Bot className="w-4 h-4" />
+              </div>
+              <Card className="p-3 bg-card/80 border-border/50">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">جاري توليد كود Flutter...</span>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
-
 
       {/* Message Input */}
       <div className="p-4 border-t border-border bg-card/80 backdrop-blur-md">
         <div className="flex gap-2">
           <Textarea
-            placeholder="اكتب رسالتك هنا..."
+            placeholder="اكتب وصف التطبيق الذي تريد إنشاؤه..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="resize-none"
@@ -239,7 +322,7 @@ const ChatPanel = () => {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          اضغط Enter للإرسال، Shift+Enter لسطر جديد
+          اضغط Enter للإرسال، Shift+Enter لسطر جديد • مدعوم بـ Flutter AI CTO Expert
         </p>
       </div>
     </div>
