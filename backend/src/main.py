@@ -21,6 +21,8 @@ from models.security_validator import SecurityValidator
 from models.performance_optimizer import PerformanceOptimizer
 from models.architecture_enforcer import ArchitectureEnforcer
 from routes.cto_api import cto_bp
+from routes.model_api import model_bp
+from routes.fullstack_api import fullstack_bp
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +40,8 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(cto_bp, url_prefix='/api/cto')
+    app.register_blueprint(model_bp, url_prefix='/api/models')
+    app.register_blueprint(fullstack_bp, url_prefix='/api/fullstack')
     
     # Health check endpoint
     @app.route('/health')
@@ -53,7 +57,13 @@ def create_app():
                 'Security Validation',
                 'Performance Optimization',
                 'Code Quality Analysis',
-                'SOLID Principles Enforcement'
+                'SOLID Principles Enforcement',
+                'Multi-Model AI Support',
+                'Full Stack Application Generation',
+                'Backend API Generation',
+                'Database Schema Generation',
+                'Authentication Systems',
+                'Deployment Configurations'
             ]
         })
     

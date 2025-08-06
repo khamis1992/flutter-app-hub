@@ -55,6 +55,7 @@ def generate_flutter_app():
         # Extract request parameters
         description = data.get('description', '')
         app_type = data.get('app_type', 'general')
+        model_name = data.get('model_name')  # Optional model selection
         requirements = data.get('requirements', {})
         preferences = data.get('preferences', {})
         
@@ -71,7 +72,8 @@ def generate_flutter_app():
         # Generate the Flutter application
         result = flutter_generator.generate_flutter_app(
             user_request=description,
-            app_type=app_type
+            app_type=app_type,
+            model_name=model_name
         )
         
         if result.get('success'):

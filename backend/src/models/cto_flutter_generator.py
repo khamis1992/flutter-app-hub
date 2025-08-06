@@ -6,11 +6,10 @@ Generates production-ready Flutter code following Google's official best practic
 import json
 import logging
 from typing import Dict, List, Any, Optional
-from openai import OpenAI
-import os
 from datetime import datetime
 
 from .production_code_generator import ProductionCodeGenerator
+from .model_manager import model_manager
 
 logger = logging.getLogger(__name__)
 
@@ -29,23 +28,32 @@ class CTOFlutterGenerator:
     
     def __init__(self):
         """Initialize the CTO Flutter Generator"""
-        self.client = OpenAI(
-            api_key=os.getenv('OPENAI_API_KEY'),
-            base_url=os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
-        )
+        # Use Model Manager for flexible AI model support
+        self.model_manager = model_manager
         
         # Initialize production code generator
         self.production_generator = ProductionCodeGenerator()
         
-        logger.info("CTO Flutter Generator initialized with production-level capabilities")
+        logger.info("CTO Flutter Generator initialized with multi-model support")
+        logger.info(f"Available models: {[m['name'] for m in self.model_manager.get_available_models()]}")
     
-    def generate_flutter_app(self, user_request: str, app_type: str = "general") -> Dict[str, Any]:
+    def set_model(self, model_name: str) -> bool:
+        """Switch to a different AI model"""
+        return self.model_manager.switch_model(model_name)
+    
+    def get_available_models(self) -> List[Dict[str, Any]]:
+        """Get list of available AI models"""
+        return self.model_manager.get_available_models()
+    
+    def generate_flutter_app(self, user_request: str, app_type: str = "general", 
+                           model_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate a complete Flutter application with CTO-level expertise
         
         Args:
             user_request: User's description of the desired app
             app_type: Type of application (e.g., 'ecommerce', 'social', 'productivity')
+            model_name: Optional specific model to use
             
         Returns:
             Dictionary containing the complete Flutter project structure
@@ -53,11 +61,21 @@ class CTOFlutterGenerator:
         try:
             logger.info(f"Generating CTO-level Flutter app: {app_type}")
             
-            # Use the production code generator
+            # Switch model if specified
+            if model_name:
+                if not self.model_manager.switch_model(model_name):
+                    logger.warning(f"Failed to switch to model {model_name}, using current model")
+            
+            # Use the production code generator with model manager
             result = self.production_generator.generate_production_flutter_app(
                 user_request=user_request,
-                app_type=app_type
+                app_type=app_type,
+                model_name=model_name
             )
+            
+            # Add model information to result
+            current_model = self.model_manager.get_model_info()
+            result['model_used'] = current_model
             
             return result
             
@@ -66,6 +84,7 @@ class CTOFlutterGenerator:
             return {
                 'success': False,
                 'error': str(e),
+                'model_used': self.model_manager.get_model_info(),
                 'fallback_project': self._get_fallback_project(user_request)
             }
     
