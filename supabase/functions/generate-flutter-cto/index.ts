@@ -36,13 +36,13 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: 4000,
-        temperature: 0.7,
+        max_tokens: 8000,
+        temperature: 0.3,
       }),
     });
 
@@ -99,32 +99,64 @@ serve(async (req) => {
 });
 
 function getCTOSystemPrompt(appType: string): string {
-  return `You are a Flutter CTO expert. Generate complete, working Flutter application code only. Do NOT provide instructions or explanations - only generate actual Dart code files.
+  return `You are an expert Flutter developer. Your task is to generate ONLY complete, working Flutter code files. NO EXPLANATIONS, NO INSTRUCTIONS - ONLY CODE.
 
-CRITICAL: Return ONLY complete code files in the following format:
-- Each file must be wrapped in code blocks with clear file paths
-- Generate complete, functional Flutter code
-- No explanations, just code
+EXAMPLE OUTPUT FORMAT:
 
-Required files to generate:
-1. lib/main.dart - Complete main app file
-2. pubspec.yaml - Complete dependencies file
-3. At least 2-3 complete UI screens
-4. At least 1-2 model classes
-5. At least 1 repository/service class
-6. README.md - Setup instructions
+\`\`\`dart
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-Code structure requirements:
-- Clean Architecture with proper layer separation
-- MVVM Pattern with Repository Pattern
-- State Management using Provider
-- Responsive UI design
-- Error handling
-- Material Design components
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Instagram Clone',
+      home: HomeScreen(),
+    );
+  }
+}
+\`\`\`
+
+\`\`\`yaml
+# pubspec.yaml
+name: instagram_clone
+description: A Flutter Instagram clone app
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.0.5
+\`\`\`
+
+RULES:
+- Generate ONLY code blocks with file paths as comments
+- Each file must be complete and functional
+- NO explanatory text outside code blocks
+- NO instructions or tutorials
+- Use proper Flutter/Dart syntax
+- Include proper imports and dependencies
+
+REQUIRED FILES:
+1. lib/main.dart - Complete main app
+2. pubspec.yaml - All dependencies
+3. lib/screens/ - Multiple UI screens
+4. lib/models/ - Data models
+5. lib/services/ - Business logic
+6. README.md - Basic setup instructions
 
 ${getAppTypeSpecificGuidelines(appType)}
 
-IMPORTANT: Generate ONLY working Flutter code files. Each file must be complete and functional.`;
+CRITICAL: Output ONLY code blocks. Nothing else.`;
 }
 
 function getAppTypeSpecificGuidelines(appType: string): string {
@@ -213,6 +245,20 @@ GENERATE ONLY CODE FILES. No explanations. Each file must be complete and functi
 
 function parseGeneratedContent(content: string, description: string, appType: string): any {
   console.log('Parsing generated content...');
+  console.log('Generated content preview:', content.substring(0, 500));
+  
+  // Check if content contains instructional/explanatory text instead of code
+  const isInstructional = content.includes('To create') || 
+                          content.includes('Here\'s how') || 
+                          content.includes('Follow these steps') ||
+                          content.includes('You can create') ||
+                          content.includes('This will create') ||
+                          content.length < 1000; // Too short to be actual code
+  
+  if (isInstructional) {
+    console.error('Generated content is instructional rather than code');
+    throw new Error('AI generated instructions instead of code');
+  }
   
   const project = {
     name: extractProjectName(description),
@@ -227,10 +273,14 @@ function parseGeneratedContent(content: string, description: string, appType: st
   // Extract different file types from the generated content
   const files = extractFiles(content);
   
-  // Validate that we have actual Flutter code
-  if (!validateFlutterCode(files)) {
-    console.log('Generated content does not contain valid Flutter code, using fallback');
-    throw new Error('Generated content does not contain valid Flutter code');
+  // Enhanced validation
+  if (!validateFlutterCode(files) || Object.keys(files).length < 3) {
+    console.log('Generated content validation failed:', {
+      fileCount: Object.keys(files).length,
+      hasMainDart: !!files['lib/main.dart'],
+      hasPubspec: !!files['pubspec.yaml']
+    });
+    throw new Error('Generated content does not contain sufficient Flutter code');
   }
   
   project.files = files;
@@ -240,7 +290,10 @@ function parseGeneratedContent(content: string, description: string, appType: st
     project.dependencies = extractDependencies(files['pubspec.yaml']);
   }
 
-  console.log('Content parsed successfully');
+  console.log('Content parsed successfully:', {
+    fileCount: Object.keys(files).length,
+    dependencies: project.dependencies.length
+  });
   return project;
 }
 
@@ -266,14 +319,16 @@ function extractProjectName(description: string): string {
 function extractFiles(content: string): Record<string, string> {
   const files: Record<string, string> = {};
   
-  // First try to extract files with explicit file path headers
-  const filePathRegex = /(?:^|\n)(?:\/\/\s*)?(?:File:|Path:)?\s*([^\n]+\.(?:dart|yaml|md))\s*\n```(?:dart|yaml|md)?\n?([\s\S]*?)```/gi;
+  // Enhanced regex to match file paths in comments
+  const filePathRegex = /(?:^|\n)\s*(?:\/\/|#)\s*([^\n]*\.(?:dart|yaml|md))\s*\n```(?:dart|yaml|md)?\s*\n([\s\S]*?)```/gi;
   let match;
   
   while ((match = filePathRegex.exec(content)) !== null) {
     const filePath = match[1].trim();
     const code = match[2].trim();
-    files[filePath] = code;
+    if (code && code.length > 20) { // Filter out empty or too small code blocks
+      files[filePath] = code;
+    }
   }
   
   // If no explicit paths found, extract code blocks and infer file types
@@ -356,24 +411,37 @@ function extractDependencies(pubspecContent: string): string[] {
 }
 
 function validateFlutterCode(files: Record<string, string>): boolean {
+  console.log('Validating Flutter code with files:', Object.keys(files));
+  
   // Check if we have a valid main.dart
   const mainDart = files['lib/main.dart'];
   if (!mainDart || (!mainDart.includes('void main()') && !mainDart.includes('runApp'))) {
+    console.log('Invalid main.dart:', mainDart ? 'missing main() or runApp()' : 'file not found');
     return false;
   }
   
   // Check if we have a valid pubspec.yaml
   const pubspec = files['pubspec.yaml'];
   if (!pubspec || !pubspec.includes('flutter:') || !pubspec.includes('dependencies:')) {
+    console.log('Invalid pubspec.yaml:', pubspec ? 'missing flutter or dependencies' : 'file not found');
     return false;
   }
   
-  // Check if we have at least one UI screen
-  const hasUIScreen = Object.values(files).some(content => 
-    content.includes('StatelessWidget') || content.includes('StatefulWidget')
-  );
+  // Check if main.dart has actual Flutter widgets
+  if (!mainDart.includes('Widget') && !mainDart.includes('MaterialApp')) {
+    console.log('main.dart does not contain Flutter widgets');
+    return false;
+  }
   
-  return hasUIScreen;
+  // Check total code volume - should be substantial
+  const totalCodeLength = Object.values(files).join('').length;
+  if (totalCodeLength < 2000) {
+    console.log('Total code length too small:', totalCodeLength);
+    return false;
+  }
+  
+  console.log('Flutter code validation passed');
+  return true;
 }
 
 function calculateQualityScore(project: any): number {
