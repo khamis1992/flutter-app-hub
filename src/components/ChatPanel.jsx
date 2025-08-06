@@ -151,15 +151,24 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
     }
   };
 
-  const generateFlutterApp = async (prompt, projectType = 'mobile_app') => {
+  const generateFlutterApp = async (prompt, projectType = 'general') => {
     try {
       setIsLoading(true);
       
-      const { data, error } = await supabase.functions.invoke('generate-flutter', {
+      const { data, error } = await supabase.functions.invoke('generate-flutter-cto', {
         body: { 
-          prompt,
-          projectType,
-          framework: 'flutter'
+          description: prompt,
+          app_type: projectType,
+          requirements: {
+            platforms: ['Android', 'iOS'],
+            features: ['Modern UI', 'Responsive design'],
+            complexity: 'Medium'
+          },
+          preferences: {
+            state_management: 'Provider',
+            architecture: 'Clean Architecture',
+            testing: false
+          }
         }
       });
 
@@ -168,12 +177,23 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
       }
 
       if (data?.project) {
+        // Validate that we actually received code
+        const hasValidCode = data.project.files && Object.keys(data.project.files).length > 0;
+        
+        if (!hasValidCode) {
+          throw new Error('لم يتم تولید كود صالح - تم استلام وصف بدلاً من الكود');
+        }
+        
         onCodeGenerated(data.project);
+        
+        const fileCount = Object.keys(data.project.files).length;
+        const hasMainDart = data.project.files['lib/main.dart'] ? 'نعم' : 'لا';
+        const hasPubspec = data.project.files['pubspec.yaml'] ? 'نعم' : 'لا';
         
         const successMessage = {
           id: Date.now() + 2,
           type: 'assistant',
-          content: `تم إنشاء تطبيق Flutter بنجاح! 🎉\n\nتم تولید:\n- الملف الرئيسي (main.dart)\n- ${data.project.models?.length || 0} نموذج\n- ${data.project.views?.length || 0} واجهة\n- ${data.project.controllers?.length || 0} متحكم\n\nيمكنك رؤية الكود في لوحة المعاينة.`,
+          content: `تم إنشاء تطبيق Flutter بنجاح! 🎉\n\nتفاصيل المشروع:\n- عدد الملفات: ${fileCount}\n- main.dart: ${hasMainDart}\n- pubspec.yaml: ${hasPubspec}\n- جودة الكود: ${data.project.quality_score || 'غير محددة'}\n\nيمكنك رؤية الكود في لوحة المعاينة.`,
           timestamp: new Date().toLocaleTimeString('ar-SA')
         };
         
@@ -181,8 +201,10 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
         
         toast({
           title: "تم إنشاء التطبيق بنجاح",
-          description: "تم تولید كود Flutter كامل",
+          description: `تم تولید ${fileCount} ملف كود Flutter`,
         });
+      } else {
+        throw new Error('لم يتم استلام بيانات المشروع من الخادم');
       }
     } catch (error) {
       console.error('Error generating Flutter app:', error);

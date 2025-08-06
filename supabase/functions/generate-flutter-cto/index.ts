@@ -487,13 +487,26 @@ function parseGeneratedContent(content: string, description: string, appType: st
     'Don\'t forget to', 'Remember to', 'It\'s important to'
   ];
   
+  // Check for code blocks and actual Dart code indicators
+  const hasCodeBlocks = (content.match(/```/g) || []).length >= 4; // At least 2 code blocks
+  const hasDartCode = content.includes('import \'package:flutter/') || 
+                      content.includes('class ') || 
+                      content.includes('Widget build(');
+  
+  // More lenient check - only reject if it's clearly instructional AND has no code
   const isInstructional = instructionalPatterns.some(pattern => 
     content.toLowerCase().includes(pattern.toLowerCase())
-  ) || content.length < 2000; // Too short to be substantial code
+  ) && (!hasCodeBlocks || !hasDartCode);
   
-  if (isInstructional) {
-    console.error('Generated content is instructional rather than code');
-    throw new Error('AI generated instructions instead of production-ready code');
+  if (isInstructional && content.length < 3000) {
+    console.error('Generated content appears to be instructional rather than code');
+    console.log('Content analysis:', {
+      hasCodeBlocks,
+      hasDartCode,
+      length: content.length,
+      instructionalMatch: instructionalPatterns.find(p => content.toLowerCase().includes(p.toLowerCase()))
+    });
+    throw new Error('AI generated instructions instead of production-ready code. Please try again.');
   }
   
   // Advanced content quality validation
