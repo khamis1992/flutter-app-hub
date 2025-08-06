@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Send, Bot, User, Zap, Brain, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import ErrorDisplay from "./ErrorDisplay";
+import LoadingIndicator from "./LoadingIndicator";
 
 const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => void }) => {
   const [message, setMessage] = useState("");
@@ -277,18 +279,12 @@ const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => vo
         ))}
         
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="flex gap-3 max-w-[80%]">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-primary text-primary-foreground">
-                <Bot className="w-4 h-4" />
-              </div>
-              <Card className="p-3 bg-card/80 border-border/50">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">جاري توليد كود Flutter...</span>
-                </div>
-              </Card>
-            </div>
+          <div className="max-w-full">
+            <LoadingIndicator 
+              stage="generating" 
+              model={llmModels.find(m => m.id === selectedModel)?.name || selectedModel}
+              appType={appType}
+            />
           </div>
         )}
       </div>

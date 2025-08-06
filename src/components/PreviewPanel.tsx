@@ -34,6 +34,12 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
   const getProjectFiles = () => {
     if (!project) return {};
     
+    // Handle new project structure from enhanced edge function
+    if (project.files && typeof project.files === 'object') {
+      return project.files;
+    }
+    
+    // Fallback for old project structure
     const files: { [key: string]: string } = {};
     
     if (project.main) {
@@ -289,12 +295,12 @@ const PreviewPanel = ({ project }: PreviewPanelProps) => {
                   <div className="space-y-3 text-sm">
                     <div>
                       <span className="font-medium">البنية المعمارية:</span>
-                      <span className="ml-2">{project.architecture || "Clean Architecture"}</span>
+                      <span className="ml-2">{project.architecture || "Clean Architecture with MVVM"}</span>
                     </div>
                     <div>
                       <span className="font-medium">الأنماط المطبقة:</span>
                       <div className="mt-1">
-                        {(project.patterns || ["MVVM", "Repository", "Dependency Injection"]).map((pattern: string, index: number) => (
+                        {(project.patterns || ["Clean Architecture", "Repository Pattern", "Provider State Management"]).map((pattern: string, index: number) => (
                           <span key={index} className="inline-block bg-secondary text-secondary-foreground px-2 py-1 rounded text-xs mr-1 mb-1">
                             {pattern}
                           </span>

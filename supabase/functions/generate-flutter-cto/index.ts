@@ -63,14 +63,13 @@ serve(async (req) => {
     // Parse and structure the generated code
     const project = parseGeneratedContent(generatedContent, description, app_type);
     
-    // Calculate quality score based on generated features
-    const qualityScore = calculateQualityScore(project);
-    project.quality_score = qualityScore;
+    // Quality score is calculated during parsing
+    // project.quality_score is set in parseGeneratedContent
 
     console.log('Project structured successfully:', {
       name: project.name,
       fileCount: Object.keys(project.files).length,
-      qualityScore
+      qualityScore: project.quality_score
     });
 
     return new Response(JSON.stringify({
@@ -99,14 +98,27 @@ serve(async (req) => {
 });
 
 function getCTOSystemPrompt(appType: string): string {
-  return `You are an expert Flutter developer. Your task is to generate ONLY complete, working Flutter code files. NO EXPLANATIONS, NO INSTRUCTIONS - ONLY CODE.
+  return `You are an expert Flutter developer and CTO-level architect. Your task is to generate COMPLETE, PRODUCTION-READY Flutter applications that demonstrate best practices and clean architecture.
 
-EXAMPLE OUTPUT FORMAT:
+CRITICAL RULES:
+1. Generate ONLY complete code files with file paths as comments
+2. NO explanatory text outside code blocks
+3. NO instructions or tutorials - ONLY working code
+4. Each file must be complete, functional, and follow Flutter best practices
+5. Use clean architecture patterns (Repository, UseCase, Provider/Bloc)
+6. Include proper error handling and null safety
+
+EXACT OUTPUT FORMAT (MANDATORY):
 
 \`\`\`dart
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'screens/home_screen.dart';
+import 'providers/app_provider.dart';
+import 'config/theme.dart';
 
 void main() {
   runApp(MyApp());
@@ -115,9 +127,25 @@ void main() {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Instagram Clone',
-      home: HomeScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Flutter App',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        home: HomeScreen(),
+        localizationsDelegates: [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: [
+          Locale('en', ''),
+          Locale('ar', ''),
+        ],
+      ),
     );
   }
 }
@@ -125,97 +153,301 @@ class MyApp extends StatelessWidget {
 
 \`\`\`yaml
 # pubspec.yaml
-name: instagram_clone
-description: A Flutter Instagram clone app
+name: flutter_app
+description: A production-ready Flutter application
 version: 1.0.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   provider: ^6.0.5
+  http: ^1.1.0
+  shared_preferences: ^2.2.0
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+  fonts:
+    - family: CustomFont
+      fonts:
+        - asset: assets/fonts/CustomFont-Regular.ttf
+        - asset: assets/fonts/CustomFont-Bold.ttf
+          weight: 700
 \`\`\`
 
-RULES:
-- Generate ONLY code blocks with file paths as comments
-- Each file must be complete and functional
-- NO explanatory text outside code blocks
-- NO instructions or tutorials
-- Use proper Flutter/Dart syntax
-- Include proper imports and dependencies
-
-REQUIRED FILES:
-1. lib/main.dart - Complete main app
-2. pubspec.yaml - All dependencies
-3. lib/screens/ - Multiple UI screens
-4. lib/models/ - Data models
-5. lib/services/ - Business logic
-6. README.md - Basic setup instructions
+MANDATORY FILE STRUCTURE (Generate ALL of these):
+1. lib/main.dart - Complete app entry point with providers
+2. lib/models/ - Data models with JSON serialization  
+3. lib/screens/ - Complete UI screens with state management
+4. lib/providers/ - State management providers
+5. lib/repositories/ - Data layer with error handling
+6. lib/services/ - API and business logic services
+7. lib/widgets/ - Reusable UI components
+8. lib/config/ - App configuration (theme, constants)
+9. lib/utils/ - Helper functions and utilities
+10. pubspec.yaml - Complete dependencies
+11. README.md - Setup instructions
 
 ${getAppTypeSpecificGuidelines(appType)}
 
-CRITICAL: Output ONLY code blocks. Nothing else.`;
+FEW-SHOT EXAMPLES FOR ${appType.toUpperCase()}:
+
+${getFewShotExamples(appType)}
+
+VALIDATION REQUIREMENTS:
+- Main.dart MUST contain runApp() and MaterialApp
+- All imports must be valid Flutter/Dart packages
+- Each screen must extend StatelessWidget or StatefulWidget
+- Models must include JSON serialization (toJson/fromJson)
+- Providers must extend ChangeNotifier
+- Repository classes must handle errors properly
+- Minimum 8 files for a complete application
+
+CRITICAL: Generate ONLY code blocks with file paths. No explanations whatsoever.`;
 }
 
 function getAppTypeSpecificGuidelines(appType: string): string {
   const guidelines = {
     productivity: `
-🎯 **تطبيق إنتاجية - متطلبات خاصة:**
-- Task management مع SQLite local storage
-- Notifications system
-- Categories و filters
-- Search functionality
-- Data export/import`,
+PRODUCTIVITY APP SPECIFIC REQUIREMENTS:
+- Implement Task model with CRUD operations
+- Create TaskRepository with SQLite integration
+- Add TaskProvider for state management
+- Include CategoryService for task organization
+- Implement NotificationService structure
+- Add SearchProvider for filtering tasks
+- Create SettingsProvider for app preferences
+- Include analytics tracking for productivity metrics`,
     
     ecommerce: `
-🛒 **تطبيق تجارة إلكترونية - متطلبات خاصة:**
-- Product catalog مع categories
-- Shopping cart functionality
-- Payment integration structure
-- User authentication
-- Order management
-- Product search و filtering`,
+ECOMMERCE APP SPECIFIC REQUIREMENTS:
+- Implement Product, Order, User models with full relations
+- Create ProductRepository with pagination and caching
+- Add CartProvider for shopping cart state
+- Include PaymentService structure (without real integration)
+- Implement AuthProvider for user authentication
+- Add SearchProvider with filters and sorting
+- Create OrderRepository with order management
+- Include ProductService for catalog operations`,
     
     social: `
-👥 **تطبيق تواصل اجتماعي - متطلبات خاصة:**
-- User profiles management
-- Posts و comments system
-- Real-time messaging structure
-- Media upload handling
-- Social interactions (likes, shares)
-- Privacy settings`,
+SOCIAL APP SPECIFIC REQUIREMENTS:
+- Implement User, Post, Comment models with relationships
+- Create PostRepository with CRUD operations
+- Add AuthProvider for user management
+- Include FeedProvider for posts state management
+- Implement ChatService structure for messaging
+- Add MediaService for image/video handling
+- Create NotificationProvider for social interactions
+- Include PrivacyService for user settings`,
     
     fitness: `
-💪 **تطبيق لياقة بدنية - متطلبات خاصة:**
-- Workout tracking
-- Progress monitoring
-- Exercise database
-- Timer functionality
-- Stats و analytics
-- Goal setting system`,
+FITNESS APP SPECIFIC REQUIREMENTS:
+- Implement Workout, Exercise, Progress models
+- Create WorkoutRepository with local storage
+- Add ProgressProvider for tracking state
+- Include TimerService for workout sessions
+- Implement StatsProvider for analytics
+- Add ExerciseRepository with exercise database
+- Create GoalProvider for goal management
+- Include HealthService for data integration`,
     
     education: `
-📚 **تطبيق تعليمي - متطلبات خاصة:**
-- Course management
-- Progress tracking
-- Quiz و assessment system
-- Video player integration
-- Bookmarks و notes
-- Offline content support`,
+EDUCATION APP SPECIFIC REQUIREMENTS:
+- Implement Course, Lesson, Quiz models
+- Create CourseRepository with progress tracking
+- Add ProgressProvider for learning state
+- Include QuizService for assessments
+- Implement VideoProvider for media handling
+- Add BookmarkRepository for saved content
+- Create OfflineProvider for content caching
+- Include AnalyticsService for learning metrics`,
     
     entertainment: `
-🎮 **تطبيق ترفيه - متطلبات خاصة:**
-- Media player functionality
-- Content categorization
-- User preferences
-- Favorites system
-- Sharing capabilities
-- Offline mode support`
+ENTERTAINMENT APP SPECIFIC REQUIREMENTS:
+- Implement Media, Playlist, User models
+- Create MediaRepository with content management
+- Add PlayerProvider for media state
+- Include ContentService for categorization
+- Implement FavoritesProvider for user preferences
+- Add RecommendationService for content discovery
+- Create DownloadProvider for offline content
+- Include SharingService for social features`
   };
 
   return guidelines[appType as keyof typeof guidelines] || guidelines.productivity;
+}
+
+function getFewShotExamples(appType: string): string {
+  const examples = {
+    productivity: `
+EXAMPLE TASK MODEL:
+\`\`\`dart
+// lib/models/task.dart
+class Task {
+  final String id;
+  final String title;
+  final String description;
+  final DateTime createdAt;
+  final bool isCompleted;
+  final String categoryId;
+
+  Task({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.createdAt,
+    required this.isCompleted,
+    required this.categoryId,
+  });
+
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      createdAt: DateTime.parse(json['createdAt']),
+      isCompleted: json['isCompleted'],
+      categoryId: json['categoryId'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'createdAt': createdAt.toIso8601String(),
+      'isCompleted': isCompleted,
+      'categoryId': categoryId,
+    };
+  }
+}
+\`\`\``,
+    
+    ecommerce: `
+EXAMPLE PRODUCT MODEL:
+\`\`\`dart
+// lib/models/product.dart
+class Product {
+  final String id;
+  final String name;
+  final String description;
+  final double price;
+  final String imageUrl;
+  final String categoryId;
+  final int stock;
+  final List<String> tags;
+
+  Product({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.imageUrl,
+    required this.categoryId,
+    required this.stock,
+    required this.tags,
+  });
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      price: json['price'].toDouble(),
+      imageUrl: json['imageUrl'],
+      categoryId: json['categoryId'],
+      stock: json['stock'],
+      tags: List<String>.from(json['tags']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'imageUrl': imageUrl,
+      'categoryId': categoryId,
+      'stock': stock,
+      'tags': tags,
+    };
+  }
+}
+\`\`\``,
+    
+    social: `
+EXAMPLE POST MODEL:
+\`\`\`dart
+// lib/models/post.dart
+class Post {
+  final String id;
+  final String userId;
+  final String content;
+  final List<String> imageUrls;
+  final DateTime createdAt;
+  final int likesCount;
+  final int commentsCount;
+  final bool isLiked;
+
+  Post({
+    required this.id,
+    required this.userId,
+    required this.content,
+    required this.imageUrls,
+    required this.createdAt,
+    required this.likesCount,
+    required this.commentsCount,
+    required this.isLiked,
+  });
+
+  factory Post.fromJson(Map<String, dynamic> json) {
+    return Post(
+      id: json['id'],
+      userId: json['userId'],
+      content: json['content'],
+      imageUrls: List<String>.from(json['imageUrls']),
+      createdAt: DateTime.parse(json['createdAt']),
+      likesCount: json['likesCount'],
+      commentsCount: json['commentsCount'],
+      isLiked: json['isLiked'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'content': content,
+      'imageUrls': imageUrls,
+      'createdAt': createdAt.toIso8601String(),
+      'likesCount': likesCount,
+      'commentsCount': commentsCount,
+      'isLiked': isLiked,
+    };
+  }
+}
+\`\`\``
+  };
+
+  return examples[appType as keyof typeof examples] || examples.productivity;
 }
 
 function getDetailedUserPrompt(description: string, appType: string, requirements: any, preferences: any): string {
@@ -247,17 +479,35 @@ function parseGeneratedContent(content: string, description: string, appType: st
   console.log('Parsing generated content...');
   console.log('Generated content preview:', content.substring(0, 500));
   
-  // Check if content contains instructional/explanatory text instead of code
-  const isInstructional = content.includes('To create') || 
-                          content.includes('Here\'s how') || 
-                          content.includes('Follow these steps') ||
-                          content.includes('You can create') ||
-                          content.includes('This will create') ||
-                          content.length < 1000; // Too short to be actual code
+  // Enhanced validation for instructional content
+  const instructionalPatterns = [
+    'To create', 'Here\'s how', 'Follow these steps', 'You can create', 'This will create',
+    'Let me show you', 'First, we need to', 'Next, we\'ll', 'Finally, we\'ll',
+    'Here\'s a complete', 'Here\'s how to', 'You need to', 'Make sure to',
+    'Don\'t forget to', 'Remember to', 'It\'s important to'
+  ];
+  
+  const isInstructional = instructionalPatterns.some(pattern => 
+    content.toLowerCase().includes(pattern.toLowerCase())
+  ) || content.length < 2000; // Too short to be substantial code
   
   if (isInstructional) {
     console.error('Generated content is instructional rather than code');
-    throw new Error('AI generated instructions instead of code');
+    throw new Error('AI generated instructions instead of production-ready code');
+  }
+  
+  // Advanced content quality validation
+  const codeBlockCount = (content.match(/```/g) || []).length / 2;
+  const dartFileCount = (content.match(/\.dart/g) || []).length;
+  const importCount = (content.match(/import\s+['"][^'"]+['"]/g) || []).length;
+  
+  if (codeBlockCount < 6 || dartFileCount < 4 || importCount < 10) {
+    console.error('Generated content lacks sufficient Flutter code structure:', {
+      codeBlockCount,
+      dartFileCount,
+      importCount
+    });
+    throw new Error('Generated content does not meet minimum Flutter application requirements');
   }
   
   const project = {
@@ -266,21 +516,25 @@ function parseGeneratedContent(content: string, description: string, appType: st
     app_type: appType,
     files: {},
     dependencies: [],
-    patterns: ['Clean Architecture', 'MVVM', 'Repository Pattern'],
+    patterns: ['Clean Architecture', 'Repository Pattern', 'Provider State Management'],
+    architecture: 'Clean Architecture with MVVM',
     quality_score: 85
   };
 
   // Extract different file types from the generated content
   const files = extractFiles(content);
   
-  // Enhanced validation
-  if (!validateFlutterCode(files) || Object.keys(files).length < 3) {
+  // Enhanced validation with specific requirements
+  if (!validateFlutterCode(files)) {
     console.log('Generated content validation failed:', {
       fileCount: Object.keys(files).length,
       hasMainDart: !!files['lib/main.dart'],
-      hasPubspec: !!files['pubspec.yaml']
+      hasPubspec: !!files['pubspec.yaml'],
+      hasModels: Object.keys(files).some(f => f.includes('/models/')),
+      hasScreens: Object.keys(files).some(f => f.includes('/screens/')),
+      hasProviders: Object.keys(files).some(f => f.includes('/providers/'))
     });
-    throw new Error('Generated content does not contain sufficient Flutter code');
+    throw new Error('Generated content does not contain sufficient Flutter application structure');
   }
   
   project.files = files;
@@ -290,9 +544,15 @@ function parseGeneratedContent(content: string, description: string, appType: st
     project.dependencies = extractDependencies(files['pubspec.yaml']);
   }
 
+  // Enhanced quality analysis
+  project.quality_score = calculateAdvancedQualityScore(project, files);
+  project.patterns = detectArchitecturalPatterns(files);
+
   console.log('Content parsed successfully:', {
     fileCount: Object.keys(files).length,
-    dependencies: project.dependencies.length
+    dependencies: project.dependencies.length,
+    qualityScore: project.quality_score,
+    patterns: project.patterns
   });
   return project;
 }
@@ -413,59 +673,176 @@ function extractDependencies(pubspecContent: string): string[] {
 function validateFlutterCode(files: Record<string, string>): boolean {
   console.log('Validating Flutter code with files:', Object.keys(files));
   
-  // Check if we have a valid main.dart
+  // Essential files validation
+  const requiredFiles = ['lib/main.dart', 'pubspec.yaml'];
+  for (const file of requiredFiles) {
+    if (!files[file]) {
+      console.log(`Missing required file: ${file}`);
+      return false;
+    }
+  }
+  
+  // Validate main.dart structure
   const mainDart = files['lib/main.dart'];
-  if (!mainDart || (!mainDart.includes('void main()') && !mainDart.includes('runApp'))) {
-    console.log('Invalid main.dart:', mainDart ? 'missing main() or runApp()' : 'file not found');
-    return false;
+  const mainRequirements = ['void main()', 'runApp', 'MaterialApp', 'StatelessWidget'];
+  for (const requirement of mainRequirements) {
+    if (!mainDart.includes(requirement)) {
+      console.log(`main.dart missing requirement: ${requirement}`);
+      return false;
+    }
   }
   
-  // Check if we have a valid pubspec.yaml
+  // Validate pubspec.yaml structure
   const pubspec = files['pubspec.yaml'];
-  if (!pubspec || !pubspec.includes('flutter:') || !pubspec.includes('dependencies:')) {
-    console.log('Invalid pubspec.yaml:', pubspec ? 'missing flutter or dependencies' : 'file not found');
+  const pubspecRequirements = ['flutter:', 'dependencies:', 'name:', 'version:'];
+  for (const requirement of pubspecRequirements) {
+    if (!pubspec.includes(requirement)) {
+      console.log(`pubspec.yaml missing requirement: ${requirement}`);
+      return false;
+    }
+  }
+  
+  // Check for architectural completeness
+  const hasModels = Object.keys(files).some(path => path.includes('/models/'));
+  const hasScreens = Object.keys(files).some(path => path.includes('/screens/') || path.includes('/pages/'));
+  const hasProviders = Object.keys(files).some(path => path.includes('/providers/') || path.includes('/bloc/'));
+  
+  if (!hasModels || !hasScreens || !hasProviders) {
+    console.log('Missing architectural components:', { hasModels, hasScreens, hasProviders });
     return false;
   }
   
-  // Check if main.dart has actual Flutter widgets
-  if (!mainDart.includes('Widget') && !mainDart.includes('MaterialApp')) {
-    console.log('main.dart does not contain Flutter widgets');
-    return false;
-  }
-  
-  // Check total code volume - should be substantial
+  // Validate code quality and complexity
   const totalCodeLength = Object.values(files).join('').length;
-  if (totalCodeLength < 2000) {
-    console.log('Total code length too small:', totalCodeLength);
+  const classCount = Object.values(files).join('').match(/class\s+\w+/g)?.length || 0;
+  const importCount = Object.values(files).join('').match(/import\s+['"][^'"]+['"]/g)?.length || 0;
+  
+  if (totalCodeLength < 5000 || classCount < 6 || importCount < 8) {
+    console.log('Code complexity insufficient:', { totalCodeLength, classCount, importCount });
     return false;
   }
   
-  console.log('Flutter code validation passed');
+  // Validate Flutter/Dart syntax patterns
+  const dartPatterns = ['extends StatelessWidget', 'extends StatefulWidget', 'extends ChangeNotifier'];
+  const hasValidDartPatterns = dartPatterns.some(pattern => 
+    Object.values(files).some(content => content.includes(pattern))
+  );
+  
+  if (!hasValidDartPatterns) {
+    console.log('Missing valid Dart/Flutter patterns');
+    return false;
+  }
+  
+  console.log('Flutter code validation passed with enhanced criteria');
   return true;
 }
 
-function calculateQualityScore(project: any): number {
-  let score = 60; // Base score
+function calculateAdvancedQualityScore(project: any, files: Record<string, string>): number {
+  let score = 50; // Base score
   
-  // File structure quality
-  const fileCount = Object.keys(project.files).length;
-  score += Math.min(fileCount * 5, 20);
+  const fileList = Object.keys(files);
+  const allCode = Object.values(files).join('');
   
-  // Check for essential files
-  if (project.files['lib/main.dart']) score += 10;
-  if (project.files['pubspec.yaml']) score += 5;
-  if (project.files['README.md']) score += 5;
+  // File structure quality (25 points max)
+  const fileCount = fileList.length;
+  score += Math.min(fileCount * 2, 20); // 2 points per file, max 20
   
-  // Check for architectural patterns
-  const hasModels = Object.keys(project.files).some(path => path.includes('/models/'));
-  const hasScreens = Object.keys(project.files).some(path => path.includes('/screens/') || path.includes('/pages/'));
-  const hasRepositories = Object.keys(project.files).some(path => path.includes('/repositories/'));
+  if (files['lib/main.dart']) score += 5;
+  if (files['pubspec.yaml']) score += 3;
+  if (files['README.md']) score += 2;
   
-  if (hasModels) score += 5;
-  if (hasScreens) score += 5;
-  if (hasRepositories) score += 5;
+  // Architectural patterns (30 points max)
+  const patterns = {
+    models: fileList.some(path => path.includes('/models/')),
+    screens: fileList.some(path => path.includes('/screens/') || path.includes('/pages/')),
+    providers: fileList.some(path => path.includes('/providers/') || path.includes('/bloc/')),
+    repositories: fileList.some(path => path.includes('/repositories/')),
+    services: fileList.some(path => path.includes('/services/')),
+    widgets: fileList.some(path => path.includes('/widgets/')),
+    config: fileList.some(path => path.includes('/config/') || path.includes('/constants/')),
+    utils: fileList.some(path => path.includes('/utils/'))
+  };
+  
+  Object.values(patterns).forEach(hasPattern => {
+    if (hasPattern) score += 4; // 4 points per pattern
+  });
+  
+  // Code quality indicators (25 points max)
+  const qualityMetrics = {
+    hasJsonSerialization: allCode.includes('toJson') && allCode.includes('fromJson'),
+    hasErrorHandling: allCode.includes('try') && allCode.includes('catch'),
+    hasAsyncCode: allCode.includes('async') && allCode.includes('await'),
+    hasStateManagement: allCode.includes('ChangeNotifier') || allCode.includes('Provider'),
+    hasProperImports: (allCode.match(/import\s+['"][^'"]+['"]/g) || []).length >= 15,
+    hasValidationLogic: allCode.includes('validator') || allCode.includes('validate'),
+    hasLocalizations: allCode.includes('Localizations') || allCode.includes('GlobalMaterialLocalizations'),
+    hasThemeConfig: allCode.includes('ThemeData') || allCode.includes('Theme.of')
+  };
+  
+  Object.values(qualityMetrics).forEach(hasMetric => {
+    if (hasMetric) score += 3; // 3 points per quality metric
+  });
+  
+  // Code complexity and depth (20 points max)
+  const classCount = (allCode.match(/class\s+\w+/g) || []).length;
+  const methodCount = (allCode.match(/\w+\s*\([^)]*\)\s*{/g) || []).length;
+  const totalLines = allCode.split('\n').length;
+  
+  if (classCount >= 10) score += 5;
+  if (methodCount >= 20) score += 5;
+  if (totalLines >= 1000) score += 5;
+  if (project.dependencies?.length >= 5) score += 5;
   
   return Math.min(score, 100);
+}
+
+function detectArchitecturalPatterns(files: Record<string, string>): string[] {
+  const patterns: string[] = [];
+  const fileList = Object.keys(files);
+  const allCode = Object.values(files).join('');
+  
+  // Detect architectural patterns
+  if (fileList.some(f => f.includes('/models/')) && allCode.includes('toJson')) {
+    patterns.push('Data Transfer Objects (DTO)');
+  }
+  
+  if (fileList.some(f => f.includes('/repositories/')) && allCode.includes('Repository')) {
+    patterns.push('Repository Pattern');
+  }
+  
+  if (allCode.includes('ChangeNotifier') || allCode.includes('Provider')) {
+    patterns.push('Provider State Management');
+  }
+  
+  if (allCode.includes('BlocProvider') || allCode.includes('BlocBuilder')) {
+    patterns.push('BLoC Pattern');
+  }
+  
+  if (fileList.some(f => f.includes('/services/')) && allCode.includes('Service')) {
+    patterns.push('Service Layer');
+  }
+  
+  if (allCode.includes('Factory') && allCode.includes('fromJson')) {
+    patterns.push('Factory Pattern');
+  }
+  
+  if (allCode.includes('Singleton') || allCode.includes('getInstance')) {
+    patterns.push('Singleton Pattern');
+  }
+  
+  if (fileList.some(f => f.includes('/config/')) || allCode.includes('AppConfig')) {
+    patterns.push('Configuration Pattern');
+  }
+  
+  if (allCode.includes('dependency') || allCode.includes('inject')) {
+    patterns.push('Dependency Injection');
+  }
+  
+  // Always include these base patterns for complete Flutter apps
+  patterns.push('Clean Architecture');
+  patterns.push('MVVM (Model-View-ViewModel)');
+  
+  return [...new Set(patterns)]; // Remove duplicates
 }
 
 function generateBasicMainDart(): string {
