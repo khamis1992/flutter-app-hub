@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-flutter]
 verify_jwt = false
+
+[functions.generate-flutter-cto]
+verify_jwt = false

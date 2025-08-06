@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Bot, User, Zap, Brain, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => void }) => {
   const [message, setMessage] = useState("");
@@ -29,15 +30,11 @@ const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => vo
       setIsLoading(true);
 
       try {
-        console.log('Sending request to Flutter AI Backend...');
+        console.log('Sending request to Flutter AI CTO Edge Function...');
         
-        // Call the CTO Expert Backend
-        const response = await fetch('http://localhost:8006/api/cto/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        // Call the Supabase Edge Function
+        const { data: result, error } = await supabase.functions.invoke('generate-flutter-cto', {
+          body: {
             description: message,
             app_type: appType,
             requirements: {
@@ -50,11 +47,14 @@ const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => vo
               architecture: "clean",
               testing: true
             }
-          })
+          }
         });
 
-        const result = await response.json();
-        console.log('Response from Flutter AI Backend:', result);
+        if (error) {
+          throw new Error(error.message || 'فشل في الاتصال بخدمة توليد الكود');
+        }
+
+        console.log('Response from Flutter AI CTO Edge Function:', result);
 
         if (result.success && result.project) {
           const botMessage = {
@@ -85,7 +85,7 @@ const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => vo
         const errorMessage = {
           id: newMessages.length + 1,
           type: "bot" as const,
-          content: `عذراً، حدث خطأ في توليد الكود. يرجى المحاولة مرة أخرى.\n\n**تفاصيل الخطأ:** ${error instanceof Error ? error.message : 'خطأ غير معروف'}\n\n**تأكد من:**\n• تشغيل الخادم الخلفي على المنفذ 8006\n• توفر مفتاح OpenAI API\n• الاتصال بالإنترنت`,
+          content: `عذراً، حدث خطأ في توليد الكود. يرجى المحاولة مرة أخرى.\n\n**تفاصيل الخطأ:** ${error instanceof Error ? error.message : 'خطأ غير معروف'}\n\n**تأكد من:**\n• توفر مفتاح OpenAI API في إعدادات Supabase\n• الاتصال بالإنترنت\n• خدمة Supabase Edge Functions متاحة`,
           timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
         };
         
@@ -93,7 +93,7 @@ const ChatPanel = ({ onCodeGenerated }: { onCodeGenerated?: (project: any) => vo
         
         toast({
           title: "خطأ في توليد الكود",
-          description: "يرجى التأكد من تشغيل الخادم الخلفي والمحاولة مرة أخرى",
+          description: "يرجى التأكد من إعدادات OpenAI API والمحاولة مرة أخرى",
           variant: "destructive"
         });
       } finally {
