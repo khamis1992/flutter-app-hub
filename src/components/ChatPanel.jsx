@@ -72,6 +72,43 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
     }
   };
 
+  // Smart code generation detection
+  const detectCodeGenerationRequest = (message) => {
+    const codeKeywords = [
+      'أنشئ', 'اصنع', 'طور', 'بناء', 'إنشاء', 'صنع', 'تطوير',
+      'تطبيق', 'برنامج', 'موقع', 'أبليكيشن', 'app', 'create', 'build', 'develop',
+      'flutter', 'dart', 'كود', 'code', 'برمجة', 'programming'
+    ];
+    
+    const appTypes = [
+      'تسوق', 'shopping', 'مهام', 'todo', 'دردشة', 'chat', 'مالية', 'finance',
+      'حجز', 'booking', 'صحة', 'health', 'لياقة', 'fitness', 'تعليم', 'education',
+      'طعام', 'food', 'سفر', 'travel', 'ألعاب', 'games', 'موسيقى', 'music'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    
+    // Check for code generation keywords
+    const hasCodeKeyword = codeKeywords.some(keyword => 
+      lowerMessage.includes(keyword.toLowerCase())
+    );
+    
+    // Check for app type keywords
+    const hasAppType = appTypes.some(appType => 
+      lowerMessage.includes(appType.toLowerCase())
+    );
+    
+    // Check for explicit Flutter/code generation phrases
+    const hasFlutterRequest = lowerMessage.includes('flutter') || 
+                             lowerMessage.includes('تطبيق موبايل') ||
+                             lowerMessage.includes('mobile app') ||
+                             lowerMessage.includes('أندرويد') ||
+                             lowerMessage.includes('android') ||
+                             lowerMessage.includes('ios');
+    
+    return hasCodeKeyword && (hasAppType || hasFlutterRequest);
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -89,7 +126,25 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
     setRetryCount(0);
 
     try {
-      // Prepare messages for AI
+      // Smart routing: Check if this is a code generation request
+      const isCodeGenRequest = detectCodeGenerationRequest(currentMessage);
+      
+      if (isCodeGenRequest) {
+        // Add mode switching indicator
+        const switchingMessage = {
+          id: Date.now() + 0.5,
+          type: 'assistant',
+          content: '🔄 تم اكتشاف طلب لتوليد كود Flutter. جاري التبديل إلى وضع توليد الكود...',
+          timestamp: new Date().toLocaleTimeString('ar-SA')
+        };
+        setMessages(prev => [...prev, switchingMessage]);
+        
+        // Route to Flutter generation
+        await generateFlutterApp(currentMessage);
+        return;
+      }
+
+      // Regular chat flow
       const messagesPayload = [
         ...messages.slice(-5).map(msg => ({
           role: msg.type === 'user' ? 'user' : 'assistant',
@@ -351,11 +406,18 @@ const ChatPanel = ({ onCodeGenerated, onProjectAnalyzed }) => {
                   handleSend();
                 }
               }}
-              placeholder="اكتب رسالتك هنا... (اضغط Enter للإرسال)"
+              placeholder="اكتب رسالتك هنا... (للكود: 'أنشئ تطبيق...' - للأسئلة: أي شيء آخر)"
               className="w-full px-4 py-3 border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               rows="2"
               disabled={isLoading}
             />
+            {/* Smart mode indicator */}
+            {inputValue && detectCodeGenerationRequest(inputValue) && (
+              <div className="absolute bottom-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-md flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                وضع الكود
+              </div>
+            )}
           </div>
           <button
             onClick={handleSend}
