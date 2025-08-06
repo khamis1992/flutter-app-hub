@@ -36,7 +36,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -99,59 +99,32 @@ serve(async (req) => {
 });
 
 function getCTOSystemPrompt(appType: string): string {
-  return `أنت خبير CTO متخصص في تطوير تطبيقات Flutter على مستوى المؤسسات. مهمتك هي إنشاء كود Flutter عالي الجودة يلتزم بـ:
+  return `You are a Flutter CTO expert. Generate complete, working Flutter application code only. Do NOT provide instructions or explanations - only generate actual Dart code files.
 
-🏗️ **معايير الهندسة المعمارية:**
-- Clean Architecture مع فصل الطبقات
-- MVVM Pattern مع Repository Pattern
-- Dependency Injection باستخدام GetIt
-- State Management باستخدام Provider/Riverpod
+CRITICAL: Return ONLY complete code files in the following format:
+- Each file must be wrapped in code blocks with clear file paths
+- Generate complete, functional Flutter code
+- No explanations, just code
 
-🔒 **معايير الأمان والجودة:**
-- Input validation و data sanitization
-- Error handling شامل مع logging
-- Performance optimization
-- Responsive design لجميع أحجام الشاشات
+Required files to generate:
+1. lib/main.dart - Complete main app file
+2. pubspec.yaml - Complete dependencies file
+3. At least 2-3 complete UI screens
+4. At least 1-2 model classes
+5. At least 1 repository/service class
+6. README.md - Setup instructions
 
-📝 **هيكل الكود المطلوب:**
-\`\`\`
-/lib
-  /core
-    /constants
-    /errors
-    /utils
-  /data
-    /datasources
-    /models
-    /repositories
-  /domain
-    /entities
-    /repositories
-    /usecases
-  /presentation
-    /pages
-    /widgets
-    /providers
-  main.dart
-\`\`\`
+Code structure requirements:
+- Clean Architecture with proper layer separation
+- MVVM Pattern with Repository Pattern
+- State Management using Provider
+- Responsive UI design
+- Error handling
+- Material Design components
 
 ${getAppTypeSpecificGuidelines(appType)}
 
-📋 **متطلبات الإخراج:**
-1. main.dart كامل مع setup صحيح
-2. Models مع JSON serialization
-3. Repository classes مع error handling
-4. UI screens responsive ومتكاملة
-5. pubspec.yaml مع جميع التبعيات
-6. Tests أساسية
-7. README.md مع تعليمات التشغيل
-
-🎯 **جودة الكود:**
-- Clean Code principles
-- SOLID principles
-- DRY و KISS
-- Comprehensive comments باللغة العربية
-- Type safety كامل`;
+IMPORTANT: Generate ONLY working Flutter code files. Each file must be complete and functional.`;
 }
 
 function getAppTypeSpecificGuidelines(appType: string): string {
@@ -214,36 +187,28 @@ function getAppTypeSpecificGuidelines(appType: string): string {
 }
 
 function getDetailedUserPrompt(description: string, appType: string, requirements: any, preferences: any): string {
-  return `قم بإنشاء تطبيق Flutter كامل بناءً على الوصف التالي:
+  return `Generate a complete Flutter application for: ${description}
 
-📝 **وصف التطبيق:** ${description}
-🏷️ **نوع التطبيق:** ${appType}
+App Type: ${appType}
+Technical Requirements:
+- Platforms: ${requirements?.platforms?.join(', ') || 'Android, iOS'}
+- Features: ${requirements?.features?.join(', ') || 'Modern UI, Responsive design'}
+- Complexity: ${requirements?.complexity || 'Medium'}
 
-🔧 **المتطلبات التقنية:**
-- المنصات: ${requirements?.platforms?.join(', ') || 'Android, iOS'}
-- الميزات: ${requirements?.features?.join(', ') || 'UI حديث, تصميم متجاوب'}
-- مستوى التعقيد: ${requirements?.complexity || 'متوسط'}
+Preferences:
+- State Management: ${preferences?.state_management || 'Provider'}
+- Architecture: ${preferences?.architecture || 'Clean Architecture'}
+- Testing: ${preferences?.testing ? 'Required' : 'Optional'}
 
-⚙️ **التفضيلات:**
-- إدارة الحالة: ${preferences?.state_management || 'Provider'}
-- الهندسة المعمارية: ${preferences?.architecture || 'Clean Architecture'}
-- الاختبارات: ${preferences?.testing ? 'مطلوبة' : 'اختيارية'}
+Generate these complete code files:
+1. lib/main.dart - Complete main app setup
+2. lib/models/ - Data models with JSON serialization
+3. lib/repositories/ - Repository classes with error handling
+4. lib/screens/ - Complete UI screens with Material Design
+5. pubspec.yaml - All required dependencies
+6. README.md - Setup and run instructions
 
-📦 **مطلوب إنشاء:**
-1. main.dart مع إعداد التطبيق الكامل
-2. Models مع serialization
-3. Repository classes
-4. UI Screens متكاملة
-5. pubspec.yaml مع التبعيات
-6. Basic tests
-7. README.md
-
-⚠️ **مهم:** استخدم أفضل الممارسات في Flutter وتأكد من:
-- كود نظيف ومنظم
-- تعليقات واضحة باللغة العربية
-- UI responsive وجميل
-- Error handling شامل
-- Performance optimization`;
+GENERATE ONLY CODE FILES. No explanations. Each file must be complete and functional.`;
 }
 
 function parseGeneratedContent(content: string, description: string, appType: string): any {
@@ -261,6 +226,13 @@ function parseGeneratedContent(content: string, description: string, appType: st
 
   // Extract different file types from the generated content
   const files = extractFiles(content);
+  
+  // Validate that we have actual Flutter code
+  if (!validateFlutterCode(files)) {
+    console.log('Generated content does not contain valid Flutter code, using fallback');
+    throw new Error('Generated content does not contain valid Flutter code');
+  }
+  
   project.files = files;
   
   // Extract dependencies from pubspec.yaml if present
@@ -294,34 +266,54 @@ function extractProjectName(description: string): string {
 function extractFiles(content: string): Record<string, string> {
   const files: Record<string, string> = {};
   
-  // Extract code blocks from the generated content
-  const codeBlockRegex = /```(?:dart|yaml|md)?\n?([\s\S]*?)```/g;
+  // First try to extract files with explicit file path headers
+  const filePathRegex = /(?:^|\n)(?:\/\/\s*)?(?:File:|Path:)?\s*([^\n]+\.(?:dart|yaml|md))\s*\n```(?:dart|yaml|md)?\n?([\s\S]*?)```/gi;
   let match;
-  let fileIndex = 0;
+  
+  while ((match = filePathRegex.exec(content)) !== null) {
+    const filePath = match[1].trim();
+    const code = match[2].trim();
+    files[filePath] = code;
+  }
+  
+  // If no explicit paths found, extract code blocks and infer file types
+  if (Object.keys(files).length === 0) {
+    const codeBlockRegex = /```(?:dart|yaml|md)?\n?([\s\S]*?)```/g;
+    let fileIndex = 0;
 
-  while ((match = codeBlockRegex.exec(content)) !== null) {
-    const code = match[1].trim();
-    
-    // Determine file type and name based on content
-    if (code.includes('void main()') || code.includes('runApp')) {
-      files['lib/main.dart'] = code;
-    } else if (code.includes('name:') && code.includes('dependencies:')) {
-      files['pubspec.yaml'] = code;
-    } else if (code.includes('class') && code.includes('extends StatelessWidget')) {
-      const className = extractClassName(code);
-      files[`lib/presentation/pages/${className.toLowerCase()}_page.dart`] = code;
-    } else if (code.includes('class') && code.includes('Model')) {
-      const className = extractClassName(code);
-      files[`lib/data/models/${className.toLowerCase()}.dart`] = code;
-    } else if (code.includes('Repository')) {
-      const className = extractClassName(code);
-      files[`lib/data/repositories/${className.toLowerCase()}.dart`] = code;
-    } else if (code.includes('#') && code.includes('Flutter')) {
-      files['README.md'] = code;
-    } else {
-      // Generic file
-      fileIndex++;
-      files[`lib/core/utils/file_${fileIndex}.dart`] = code;
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const code = match[1].trim();
+      
+      // Skip empty code blocks
+      if (!code || code.length < 10) continue;
+      
+      // Determine file type and name based on content
+      if (code.includes('void main()') || code.includes('runApp')) {
+        files['lib/main.dart'] = code;
+      } else if (code.includes('name:') && code.includes('dependencies:') && code.includes('flutter:')) {
+        files['pubspec.yaml'] = code;
+      } else if (code.includes('class') && (code.includes('extends StatelessWidget') || code.includes('extends StatefulWidget'))) {
+        const className = extractClassName(code);
+        if (className !== 'Unknown') {
+          files[`lib/screens/${className.toLowerCase()}_screen.dart`] = code;
+        }
+      } else if (code.includes('class') && code.includes('Model')) {
+        const className = extractClassName(code);
+        if (className !== 'Unknown') {
+          files[`lib/models/${className.toLowerCase()}.dart`] = code;
+        }
+      } else if (code.includes('class') && code.includes('Repository')) {
+        const className = extractClassName(code);
+        if (className !== 'Unknown') {
+          files[`lib/repositories/${className.toLowerCase()}.dart`] = code;
+        }
+      } else if (code.includes('#') && (code.includes('Flutter') || code.includes('README'))) {
+        files['README.md'] = code;
+      } else if (code.includes('import \'package:flutter/') || code.includes('import "package:flutter/')) {
+        // Generic Dart file
+        fileIndex++;
+        files[`lib/utils/file_${fileIndex}.dart`] = code;
+      }
     }
   }
 
@@ -363,6 +355,27 @@ function extractDependencies(pubspecContent: string): string[] {
   return dependencies;
 }
 
+function validateFlutterCode(files: Record<string, string>): boolean {
+  // Check if we have a valid main.dart
+  const mainDart = files['lib/main.dart'];
+  if (!mainDart || (!mainDart.includes('void main()') && !mainDart.includes('runApp'))) {
+    return false;
+  }
+  
+  // Check if we have a valid pubspec.yaml
+  const pubspec = files['pubspec.yaml'];
+  if (!pubspec || !pubspec.includes('flutter:') || !pubspec.includes('dependencies:')) {
+    return false;
+  }
+  
+  // Check if we have at least one UI screen
+  const hasUIScreen = Object.values(files).some(content => 
+    content.includes('StatelessWidget') || content.includes('StatefulWidget')
+  );
+  
+  return hasUIScreen;
+}
+
 function calculateQualityScore(project: any): number {
   let score = 60; // Base score
   
@@ -374,6 +387,15 @@ function calculateQualityScore(project: any): number {
   if (project.files['lib/main.dart']) score += 10;
   if (project.files['pubspec.yaml']) score += 5;
   if (project.files['README.md']) score += 5;
+  
+  // Check for architectural patterns
+  const hasModels = Object.keys(project.files).some(path => path.includes('/models/'));
+  const hasScreens = Object.keys(project.files).some(path => path.includes('/screens/') || path.includes('/pages/'));
+  const hasRepositories = Object.keys(project.files).some(path => path.includes('/repositories/'));
+  
+  if (hasModels) score += 5;
+  if (hasScreens) score += 5;
+  if (hasRepositories) score += 5;
   
   return Math.min(score, 100);
 }
