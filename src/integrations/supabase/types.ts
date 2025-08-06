@@ -14,7 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_history: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_type: string
+          metadata: Json | null
+          project_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          framework: string | null
+          generated_code: Json | null
+          id: string
+          name: string
+          project_type: Database["public"]["Enums"]["project_type"] | null
+          settings: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          framework?: string | null
+          generated_code?: Json | null
+          id?: string
+          name: string
+          project_type?: Database["public"]["Enums"]["project_type"] | null
+          settings?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          framework?: string | null
+          generated_code?: Json | null
+          id?: string
+          name?: string
+          project_type?: Database["public"]["Enums"]["project_type"] | null
+          settings?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          ai_model: string | null
+          created_at: string | null
+          default_framework: string | null
+          id: string
+          language: string | null
+          preferences: Json | null
+          theme: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_model?: string | null
+          created_at?: string | null
+          default_framework?: string | null
+          id?: string
+          language?: string | null
+          preferences?: Json | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_model?: string | null
+          created_at?: string | null
+          default_framework?: string | null
+          id?: string
+          language?: string | null
+          preferences?: Json | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +135,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      project_type:
+        | "mobile_app"
+        | "web_app"
+        | "api"
+        | "game"
+        | "ecommerce"
+        | "social"
+        | "productivity"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +270,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      project_type: [
+        "mobile_app",
+        "web_app",
+        "api",
+        "game",
+        "ecommerce",
+        "social",
+        "productivity",
+        "other",
+      ],
+    },
   },
 } as const
