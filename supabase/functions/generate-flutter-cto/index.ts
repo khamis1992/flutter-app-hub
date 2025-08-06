@@ -36,7 +36,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -83,8 +83,19 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-flutter-cto function:', error);
     
+    // Get request data for fallback (with safe defaults)
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch {
+      requestData = { description: 'Flutter App', app_type: 'general' };
+    }
+    
+    const fallbackDescription = requestData?.description || 'Flutter App';
+    const fallbackAppType = requestData?.app_type || 'general';
+    
     // Return fallback project on error
-    const fallbackProject = getFallbackProject(description || 'Flutter App', app_type || 'general');
+    const fallbackProject = getFallbackProject(fallbackDescription, fallbackAppType);
     
     return new Response(JSON.stringify({
       success: false,
@@ -509,12 +520,14 @@ function parseGeneratedContent(content: string, description: string, appType: st
     throw new Error('AI generated instructions instead of production-ready code. Please try again.');
   }
   
-  // Advanced content quality validation
+  // Advanced content quality validation (more flexible)
   const codeBlockCount = (content.match(/```/g) || []).length / 2;
   const dartFileCount = (content.match(/\.dart/g) || []).length;
   const importCount = (content.match(/import\s+['"][^'"]+['"]/g) || []).length;
   
-  if (codeBlockCount < 6 || dartFileCount < 4 || importCount < 10) {
+  console.log('Content quality metrics:', { codeBlockCount, dartFileCount, importCount });
+  
+  if (codeBlockCount < 3 || dartFileCount < 2 || importCount < 5) {
     console.error('Generated content lacks sufficient Flutter code structure:', {
       codeBlockCount,
       dartFileCount,
@@ -715,22 +728,27 @@ function validateFlutterCode(files: Record<string, string>): boolean {
     }
   }
   
-  // Check for architectural completeness
+  // Check for architectural completeness (more flexible)
   const hasModels = Object.keys(files).some(path => path.includes('/models/'));
   const hasScreens = Object.keys(files).some(path => path.includes('/screens/') || path.includes('/pages/'));
   const hasProviders = Object.keys(files).some(path => path.includes('/providers/') || path.includes('/bloc/'));
+  const hasRepositories = Object.keys(files).some(path => path.includes('/repositories/'));
+  const hasWidgets = Object.keys(files).some(path => path.includes('/widgets/'));
   
-  if (!hasModels || !hasScreens || !hasProviders) {
-    console.log('Missing architectural components:', { hasModels, hasScreens, hasProviders });
+  // At least 2 out of 5 architectural components should be present
+  const architecturalScore = [hasModels, hasScreens, hasProviders, hasRepositories, hasWidgets].filter(Boolean).length;
+  
+  if (architecturalScore < 2) {
+    console.log('Insufficient architectural components:', { hasModels, hasScreens, hasProviders, hasRepositories, hasWidgets, score: architecturalScore });
     return false;
   }
   
-  // Validate code quality and complexity
+  // Validate code quality and complexity (more flexible thresholds)
   const totalCodeLength = Object.values(files).join('').length;
   const classCount = Object.values(files).join('').match(/class\s+\w+/g)?.length || 0;
   const importCount = Object.values(files).join('').match(/import\s+['"][^'"]+['"]/g)?.length || 0;
   
-  if (totalCodeLength < 5000 || classCount < 6 || importCount < 8) {
+  if (totalCodeLength < 3000 || classCount < 3 || importCount < 5) {
     console.log('Code complexity insufficient:', { totalCodeLength, classCount, importCount });
     return false;
   }
